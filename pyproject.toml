@@ -30,16 +30,27 @@ dependencies = [
     "tqdm>=4.67.1",
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
+    "langsmith>=0.3.45",
+    "sqlalchemy>=2.0",
+    "ib_async>=2.0",
 ]
 
 [project.scripts]
-tradingagents = "cli.main:app"
+tradingagents = "tradingagents.cli:main"
+
+[dependency-groups]
+# Dev tools live in the project's uv-managed .venv (single environment).
+# `uv sync` installs these too; run everything via `uv run`.
+dev = [
+    "pytest>=8.0",
+    "pytest-subtests>=0.12",
+]
 
 [tool.setuptools.packages.find]
-include = ["tradingagents*", "cli*"]
+include = ["tradingagents*"]
 
 [tool.setuptools.package-data]
-cli = ["static/*"]
+tradingagents = ["data/*.csv"]   # ship the S&P 500 seed
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,33 @@
+"""Orchestration: the cycle runner that ties the whole alpha together.
+
+Flow (the funnel + trigger engine of the wiki):
+
+    Trigger Engine  ->  priority queue  ->  analyze (LLM graph)  ->  cost gate  ->  execute
+
+The ``analyze`` step is a pluggable hook: Luca's LangGraph implements the
+``Analyzer`` signature; until then a ``hold_analyzer`` stub keeps the runner
+fully testable without any LLM.
+"""
+
+from .triggers import (
+    TriggerEvent,
+    collect_triggers,
+    event_checkpoints,
+    price_alerts,
+    watchlist_candidates,
+)
+from .analyze import Analyzer, hold_analyzer, make_brain_analyzer
+from .cycle import CycleReport, run_cycle
+
+__all__ = [
+    "TriggerEvent",
+    "collect_triggers",
+    "event_checkpoints",
+    "watchlist_candidates",
+    "price_alerts",
+    "Analyzer",
+    "hold_analyzer",
+    "make_brain_analyzer",
+    "CycleReport",
+    "run_cycle",
+]

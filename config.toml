@@ -1,0 +1,77 @@
+# =====================================================================
+# trading-agent — global configuration
+# One file to tune every parameter of the system. Secrets stay in .env.
+# Any value omitted here keeps its built-in default (see tradingagents/config.py).
+# Point elsewhere with TRADINGAGENTS_CONFIG=/path/to/config.toml
+# =====================================================================
+
+[llm]
+# OpenRouter is the default single provider. Verify slugs on openrouter.ai
+# (free models end in :free). The API key lives in .env (OPENROUTER_API_KEY).
+provider    = "openrouter"
+deep_model  = "openrouter/owl-alpha"   # free + tool-calling + 1M ctx
+quick_model = "openrouter/owl-alpha"
+# backend_url = ""          # leave unset: auto-resolved for OpenRouter
+
+[risk]
+base_risk_pct    = 0.01     # risk budget per trade (× conviction multiplier)
+heat_max_pct     = 0.06     # max aggregate open risk (portfolio heat)
+max_position_pct = 0.10     # max weight per single position
+atr_period       = 14
+k_entry          = 0.5      # entry distance in ATR units
+k_stop           = 2.0      # stop distance in ATR units
+k_tp             = 3.0      # take-profit distance in ATR units
+min_risk_reward  = 1.5      # R:R guardrail
+
+[charter]                   # institutional Statute (deterministic guardrails)
+cash_reserve_pct  = 0.10    # strategic cash reserve, never invested
+max_portfolio_var = 0.10    # portfolio VaR cap (proxy)
+max_sector_pct    = 0.30    # max exposure per sector
+
+[screening]
+lookback = 60               # bars used by the screening signals
+top_k    = 5                # tickers per cycle that reach the deep dive
+
+[universe]
+# What the funnel actually analyses: "watchlist" (dynamic working set) or "full".
+# The system always KNOWS the whole broker-tradable universe and reconciles it.
+scope                  = "watchlist"
+reconcile_every_cycles = 24          # re-sync the broker universe every N cycles
+# sp500_seed_path      = ""          # default: packaged tradingagents/data/sp500.csv
+
+[watchlist]
+membership        = "hybrid"   # "hybrid" (rules propose + PM curates) | "agent" | "deterministic"
+max_size          = 60         # cap on the working set
+evict_after_cycles = 30        # drop stale low-score names after N cycles
+seed              = "sp500"    # initial watchlist: "sp500" | "portfolio" | "empty"
+
+[benchmark]
+# Dynamic: a list, can be more than one and change over time. Never hardcoded.
+symbols = ["SPY"]
+
+[cycle]
+max_revisions   = 1         # "when in doubt, ask" loop cap
+interval_seconds = 3600     # autonomous loop period (--loop)
+price_alert_atr = 1.5       # anomalous-move trigger threshold (|move| > k·ATR)
+max_parallel    = 3         # concurrent per-ticker evaluators (fan-out)
+
+[data]
+history_start = "2024-01-01"  # how far back to pull OHLCV
+
+[broker]
+# provider: "paper" = in-process simulator · "alpaca" · "ibkr"
+# mode (alpaca only): "paper" = paper-api.alpaca.markets · "live" = api.alpaca.markets
+#   -> set ALPACA_API_KEY / ALPACA_SECRET_KEY in .env when provider = "alpaca".
+# ibkr: TWS API via ib_async — a TWS or IB Gateway must be running locally
+#   (session auth, no API key in .env).
+provider = "alpaca"
+mode     = "paper"
+# --- IBKR only (provider = "ibkr") ---
+# account_id     = ""             # None/empty = first available account
+# ibkr_host      = "127.0.0.1"
+# ibkr_port      = 7497           # None -> 7497 paper / 7496 live (TWS); Gateway: 4002/4001
+# ibkr_client_id = 1
+
+[costs]
+token_cost_per_cycle = 0.0
+commission_per_trade = 0.0    # 0 = commission-free (e.g. Alpaca equity)

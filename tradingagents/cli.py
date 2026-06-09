@@ -1,0 +1,196 @@
+"""CLI for the trading-agent.
+
+Background (whole system, one command each):
+    python -m tradingagents.cli start    # launch everything in background
+    python -m tradingagents.cli stop     # stop it
+    python -m tradingagents.cli status   # is it running?
+
+Foreground:
+    python -m tradingagents.cli run [SYMBOLS...] [--loop SECONDS]
+
+All tunable parameters live in ``config.toml``; secrets in ``.env``.
+"""
+
+from __future__ import annotations
+
+import argparse
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Run the trading-agent.")
+    sub = parser.add_subparsers(dest="command")
+
+    p_start = sub.add_parser("start", help="Launch the whole system in the background")
+    p_start.add_argument("--interval", type=float, default=None,
+                         help="Loop period in seconds (default from config)")
+    p_start.add_argument("--config", default=None)
+    p_start.add_argument("--db", default=None)
+
+    sub.add_parser("stop", help="Stop the background system")
+    sub.add_parser("status", help="Show whether the system is running")
+
+    p_run = sub.add_parser("run", help="Run in the foreground")
+    p_run.add_argument("symbols", nargs="*", help="Optional override; default = watchlist")
+    p_run.add_argument("--config", default=None, help="Path to config.toml")
+    p_run.add_argument("--start", default=None, help="History start (override config)")
+    p_run.add_argument("--end", default=None, help="History end (default today)")
+    p_run.add_argument("--db", default=None, help="Database URL (default local SQLite)")
+    p_run.add_argument("--loop", type=float, default=None, metavar="SECONDS",
+                       help="Run continuously every SECONDS (default from config)")
+
+    args = parser.parse_args(argv)
+
+    # --- daemon subcommands ---------------------------------------------
+    if args.command == "start":
+        from . import daemon
+        print(daemon.start(interval=args.interval, config=args.config, db=args.db))
+        return 0
+    if args.command == "stop":
+        from . import daemon
+        print(daemon.stop())
+        return 0
+    if args.command == "status":
+        from . import daemon
+        print(daemon.status())
+        return 0
+    if args.command != "run":
+        parser.print_help()
+        return 0
+
+    return _cmd_run(args)
+
+
+def _cmd_run(args) -> int:
+    import os
+
+    from .config import load_settings
+
+    settings = load_settings(args.config)
+    start = args.start or settings.data.history_start
+
+    print(
+        f"model: provider={settings.llm.provider} "
+        f"deep={settings.llm.deep_model} quick={settings.llm.quick_model}"
+    )
+
+    from .brain import ForkStructuredLLM
+    from .brain.tooling import Extractors
+    from .broker import PerTradeCommission, ZeroCommission
+    from .ingestion import (
+        StockTwitsFetcher,
+        YFinanceFetcher,
+        YFinanceFundamentalsFetcher,
+        YFinanceNewsFetcher,
+    )
+    from .orchestration import make_brain_analyzer
+
+    macro_fetcher = None
+    if os.environ.get("FRED_API_KEY"):
+        from .ingestion import FredFetcher
+
+        macro_fetcher = FredFetcher()
+
+    price_f = YFinanceFetcher()
+    news_f = YFinanceNewsFetcher()
+    fund_f = YFinanceFundamentalsFetcher()
+    social_f = StockTwitsFetcher()
+
+    extractors = Extractors(
+        price_fetcher=price_f, news_fetcher=news_f, fundamentals_fetcher=fund_f,
+        macro_fetcher=macro_fetcher, social_fetcher=social_f, history_start=start,
+    )
+
+    # Broker selected from config.toml [broker]; secrets from .env.
+    broker = None
+    bs = settings.broker
+    if bs.provider == "alpaca":
+        has_keys = os.environ.get("ALPACA_API_KEY") and os.environ.get("ALPACA_SECRET_KEY")
+        if not has_keys:
+            print("broker: alpaca selected but ALPACA keys missing -> PaperBroker (simulated)")
+        else:
+            from .broker.alpaca import AlpacaBroker, alpaca_base_url
+
+            broker = AlpacaBroker(base_url=alpaca_base_url(bs.mode))
+            banner = "LIVE — real money" if bs.mode == "live" else "paper"
+            print(f"broker: Alpaca ({banner})")
+    elif bs.provider == "ibkr":
+        from .broker.ibkr import IBKRBroker, default_port
+
+        port = bs.ibkr_port or default_port(bs.mode)
+        broker = IBKRBroker(host=bs.ibkr_host, port=port, client_id=bs.ibkr_client_id, account=bs.account_id)
+        banner = "LIVE — real money" if bs.mode == "live" else "paper"
+        print(f"broker: IBKR TWS API ({banner}) {bs.ibkr_host}:{port}")
+    else:
+        print("broker: PaperBroker (simulated)")
+
+    fee = settings.costs.commission_per_trade
+    commission = PerTradeCommission(fee) if fee > 0 else ZeroCommission()
+
+    llm = ForkStructuredLLM(config=settings.llm_config())
+    analyzer = make_brain_analyzer(
+        llm, extractors=extractors,
+        max_revisions=settings.cycle.max_revisions,
+        base_risk_pct=settings.risk.base_risk_pct,
+        charter=settings.charter_dict(),
+    )
+
+    # Director: parallel per-ticker Evaluators (fan-out, bounded).
+    from .brain.director import analyze_batch
+    from .storage import database as _database
+
+    def batch_analyze(syms):
+        return analyze_batch(
+            syms, llm, session_factory=_database.get_session,
+            max_parallel=settings.cycle.max_parallel,
+            max_revisions=settings.cycle.max_revisions,
+            charter=settings.charter_dict(),
+            base_risk_pct=settings.risk.base_risk_pct,
+            extractors=extractors,
+        )
+
+    deps = dict(
+        broker=broker,
+        fetcher=price_f, news_fetcher=news_f, fundamentals_fetcher=fund_f,
+        macro_fetcher=macro_fetcher, social_fetcher=social_f,
+        benchmark_symbols=settings.benchmark.symbols,
+        watchlist_seed=settings.watchlist.seed,
+        analyzer=analyzer,
+        batch_analyze=batch_analyze,
+        commission_model=commission,
+        charter=settings.charter_dict(),
+        top_k=settings.screening.top_k,
+        base_risk_pct=settings.risk.base_risk_pct,
+        db_url=args.db, start=start, end=args.end,
+    )
+    symbols = args.symbols or None  # None -> default to the watchlist
+
+    from .app import run_once
+
+    def _print(report):
+        print(
+            f"cycle: triggers={report.triggers} analyzed={report.analyzed} "
+            f"traded={report.traded} closed={report.closed} "
+            f"skipped_cost={report.skipped_cost} skipped_not_tradable={report.skipped_not_tradable}"
+        )
+        for t in report.trades:
+            print(f"  {t.action.upper()} {t.symbol} qty={t.quantity} @ {t.entry_price} -> {t.status}")
+
+    interval = args.loop if args.loop is not None else None
+    if interval:
+        import time
+
+        print(f"autonomous loop every {interval}s (Ctrl-C to stop)")
+        try:
+            while True:
+                _print(run_once(symbols, **deps))
+                time.sleep(interval)
+        except KeyboardInterrupt:
+            print("stopped")
+        return 0
+
+    _print(run_once(symbols, **deps))
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())
