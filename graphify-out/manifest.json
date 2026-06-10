@@ -648,5 +648,10 @@
     "mtime": 1781099997.5870638,
     "ast_hash": "cbe31fb06a7a654eddcaf3e4fc0633a9",
     "semantic_hash": "cbe31fb06a7a654eddcaf3e4fc0633a9"
+  },
+  "docker-compose.yml": {
+    "mtime": 1781099997.5590637,
+    "ast_hash": "be4ca4ce21074a57dea6791e8e1403ce",
+    "semantic_hash": ""
   }
 }
