@@ -20,6 +20,8 @@ def isolated_home(tmp_path, monkeypatch):
     monkeypatch.setattr(daemon, "_HOME", tmp_path)
     monkeypatch.setattr(daemon, "_PID_FILE", pid)
     monkeypatch.setattr(daemon, "_LOG_FILE", log)
+    monkeypatch.setattr(daemon, "_BT_PID_FILE", tmp_path / "backtest.pid")
+    monkeypatch.setattr(daemon, "_BT_LOG_FILE", tmp_path / "backtest.log")
     yield tmp_path
     # cleanup any process we started
     running = daemon.is_running()

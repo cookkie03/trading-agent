@@ -58,15 +58,56 @@ def test_vbt_custom_agree_on_direction():
     assert (custom.total_return > 0) == (vbt_res.total_return > 0)
 
 
-def test_sweep_ranks_by_return():
+def test_sweep_ranks_by_metric():
     bars = _trend_bars(200, 100.0, 1.0)
     grid = sweep(bars, k_stop_grid=[1.0, 2.0, 3.0], k_tp_grid=[2.0, 3.0], atr_period=14)
-    assert len(grid) == 6                       # 3 x 2 combos
-    # sorted by total_return desc
-    returns = [row["total_return"] for row in grid]
-    assert returns == sorted(returns, reverse=True)
-    # each row carries the params + R:R
-    assert all("k_stop" in r and "k_tp" in r and "rr" in r for r in grid)
+    # R:R < 1 combos are skipped (k_stop=3, k_tp=2 -> 0.67). Expected kept: 5.
+    assert len(grid) == 5
+    # default ranking is by sharpe, descending
+    sharpes = [row["sharpe"] for row in grid]
+    assert sharpes == sorted(sharpes, reverse=True)
+    # each row carries params (incl. atr_period) + extended metrics
+    assert all({"k_stop", "k_tp", "atr_period", "rr", "sharpe", "sortino", "calmar"} <= r.keys() for r in grid)
+
+
+def test_sweep_3d_grid_with_atr_periods():
+    bars = _trend_bars(250, 100.0, 1.0)
+    grid = sweep(
+        bars,
+        k_stop_grid=[1.0, 2.0], k_tp_grid=[2.0, 3.0],
+        atr_period_grid=[10, 14], rank_by="total_return",
+    )
+    # 2 k_stop × 2 k_tp × 2 atr = 8 combos, all R:R >= 1
+    assert len(grid) == 8
+    rets = [r["total_return"] for r in grid]
+    assert rets == sorted(rets, reverse=True)
+    assert {r["atr_period"] for r in grid} == {10, 14}
+
+
+def test_sweep_invalid_rank_by_raises():
+    with pytest.raises(ValueError, match="rank_by must be one of"):
+        sweep(_trend_bars(60, 100.0, 1.0), k_stop_grid=[2.0], k_tp_grid=[3.0], rank_by="nope")
+
+
+def test_walk_forward_returns_oos_and_robust():
+    from tradingagents.backtesting import walk_forward
+
+    bars = _trend_bars(300, 100.0, 1.0)
+    wf = walk_forward(
+        bars, k_stop_grid=[1.0, 2.0, 3.0], k_tp_grid=[2.0, 3.0],
+        atr_period_grid=[14], n_splits=3,
+    )
+    assert "folds" in wf and "oos_mean_sharpe" in wf
+    assert wf["robust_params"] is not None
+    assert {"k_stop", "k_tp", "atr_period"} <= wf["robust_params"].keys()
+
+
+def test_walk_forward_short_history_is_safe():
+    from tradingagents.backtesting import walk_forward
+
+    wf = walk_forward(_trend_bars(40, 100.0, 1.0), k_stop_grid=[2.0], k_tp_grid=[3.0])
+    assert wf["folds"] == []
+    assert wf["robust_params"] is None
 
 
 def test_unknown_engine_raises():
