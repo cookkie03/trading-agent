@@ -79,17 +79,6 @@ class CostSettings(BaseModel):
     commission_per_trade: float = 0.0  # 0 = ZeroCommission (e.g. Alpaca equity)
 
 
-class BacktestSettings(BaseModel):
-    engine: str = "custom"        # "custom" (1:1 live, default) | "vectorbt" (fast/sweep)
-    atr_period: int = 14
-    k_entry: float = 0.0
-    k_stop: float = 2.0
-    k_tp: float = 3.0
-    base_risk_pct: float = 0.01
-    initial_capital: float = 100_000.0
-    fees: float = 0.0             # fraction per trade; vectorbt engine only
-
-
 class BrokerSettings(BaseModel):
     provider: str = "paper"   # "paper" (simulator) | "alpaca" | "ibkr"
     mode: str = "paper"       # "paper" | "live"  (alpaca url / ibkr default port)
@@ -111,7 +100,6 @@ class Settings(BaseModel):
     cycle: CycleSettings = Field(default_factory=CycleSettings)
     data: DataSettings = Field(default_factory=DataSettings)
     costs: CostSettings = Field(default_factory=CostSettings)
-    backtest: BacktestSettings = Field(default_factory=BacktestSettings)
     broker: BrokerSettings = Field(default_factory=BrokerSettings)
 
     # -- convenience views -------------------------------------------------

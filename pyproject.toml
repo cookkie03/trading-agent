@@ -38,11 +38,6 @@ dependencies = [
 [project.scripts]
 tradingagents = "tradingagents.cli:main"
 
-[project.optional-dependencies]
-backtest = [
-    "vectorbt>=1.0",
-]
-
 [dependency-groups]
 # Dev tools live in the project's uv-managed .venv (single environment).
 # `uv sync` installs these too; run everything via `uv run`.
