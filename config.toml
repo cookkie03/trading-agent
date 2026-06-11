@@ -77,13 +77,24 @@ token_cost_per_cycle = 0.0
 commission_per_trade = 0.0    # 0 = commission-free (e.g. Alpaca equity)
 
 [backtest]
-# engine: "custom" = hand-rolled intra-bar engine, 1:1 with the live system (default)
-#         "vectorbt" = vectorized engine (needs the 'backtest' extra: uv sync --extra backtest);
-#                      much faster, used for parameter sweeps. Reconcile vs custom before trusting.
-engine         = "custom"
+# engine: "vectorbt" = vectorized engine (default; fast, sweeps, Sharpe/Sortino/Calmar).
+#                      Needs the 'backtest' extra: uv sync --extra backtest.
+#         "custom"   = hand-rolled intra-bar engine, 1:1 with the live system (reference).
+engine         = "vectorbt"
 atr_period     = 14
 k_entry        = 0.0
 k_stop         = 2.0          # stop distance in ATR units
 k_tp           = 3.0          # take-profit in ATR units (R:R = k_tp/k_stop = 1.5)
 base_risk_pct  = 0.01         # risk per trade (fraction of equity)
 fees           = 0.0          # per-trade fee fraction; vectorbt engine only
+# --- nightly threshold-validator job (runs while markets are closed) ---
+nightly_enabled = true
+nightly_hour    = 2           # local hour (0-23) to run the overnight sweep
+lookback        = 750         # bars per symbol pulled from the DB
+apply_robust    = false       # true = write walk-forward robust params back to the charter
+# sweep grids (vectorbt at full power: 3-D grid + walk-forward validation)
+k_stop_grid     = [1.0, 1.5, 2.0, 2.5, 3.0]
+k_tp_grid       = [2.0, 3.0, 4.0, 5.0]
+atr_period_grid = [10, 14, 20]
+rank_by         = "sharpe"    # sharpe | sortino | calmar | total_return | profit_factor
+wf_splits       = 4           # walk-forward folds (anti-overfitting)

@@ -33,7 +33,7 @@ def backtest(bars: list[dict[str, Any]], *, engine: str = "custom", **params: An
 
 
 def sweep(bars: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
-    """Parameter sweep over a (k_stop, k_tp) grid using the VectorBT engine.
+    """Parameter sweep over a (k_stop, k_tp, atr_period) grid using VectorBT.
 
     Requires the 'backtest' extra. See engine_vbt.sweep for the signature.
     """
@@ -41,4 +41,13 @@ def sweep(bars: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
     return _sweep(bars, **kwargs)
 
 
-__all__ = ["BacktestResult", "backtest", "run_backtest", "sweep"]
+def walk_forward(bars: list[dict[str, Any]], **kwargs: Any) -> dict[str, Any]:
+    """Walk-forward (out-of-sample) validation. Requires the 'backtest' extra.
+
+    See engine_vbt.walk_forward for the signature.
+    """
+    from .engine_vbt import walk_forward as _wf
+    return _wf(bars, **kwargs)
+
+
+__all__ = ["BacktestResult", "backtest", "run_backtest", "sweep", "walk_forward"]

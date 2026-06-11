@@ -161,8 +161,19 @@ def _infer_freq(index) -> Optional[str]:
     return None
 
 
+def _safe(fn, default: float = 0.0) -> float:
+    """Call a vbt metric, coercing NaN/inf/errors to a finite default."""
+    import math
+
+    try:
+        v = float(fn())
+        return v if math.isfinite(v) else default
+    except Exception:
+        return default
+
+
 def _to_result(pf, initial_capital: float) -> BacktestResult:
-    """Map a vbt Portfolio into our BacktestResult contract."""
+    """Map a vbt Portfolio into our BacktestResult contract (with extended metrics)."""
     trades = pf.trades
     n_tr = int(trades.count())
     if n_tr == 0:
@@ -183,14 +194,23 @@ def _to_result(pf, initial_capital: float) -> BacktestResult:
             }
         )
 
+    # Profit factor = gross profit / gross loss
+    gross_profit = float(pnl[pnl > 0].sum())
+    gross_loss = float(-pnl[pnl < 0].sum())
+    profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else 0.0
+
     final_eq = float(pf.value().iloc[-1])
     return BacktestResult(
         num_trades=n_tr,
         wins=wins,
         hit_rate=(wins / n_tr if n_tr else 0.0),
-        total_return=float(pf.total_return()),
-        max_drawdown=float(abs(pf.max_drawdown())),
+        total_return=_safe(pf.total_return),
+        max_drawdown=abs(_safe(pf.max_drawdown)),
         final_equity=final_eq,
+        sharpe=_safe(pf.sharpe_ratio),
+        sortino=_safe(pf.sortino_ratio),
+        calmar=_safe(pf.calmar_ratio),
+        profit_factor=round(profit_factor, 4),
         trades=trade_list,
     )
 
@@ -200,41 +220,145 @@ def sweep(
     *,
     k_stop_grid: list[float],
     k_tp_grid: list[float],
+    atr_period_grid: Optional[list[int]] = None,
     atr_period: int = 14,
     base_risk_pct: float = 0.01,
     initial_capital: float = 100_000.0,
     fees: float = 0.0,
+    rank_by: str = "sharpe",
 ) -> list[dict[str, Any]]:
-    """Run the ATR backtest over a grid of (k_stop, k_tp) and rank by return.
+    """Grid-search the ATR strategy over (k_stop, k_tp, atr_period) and rank.
 
     This is the reason VectorBT was chosen: validate many threshold combos
-    cheaply. Returns a list of dicts sorted by total_return desc, each with the
-    params + key metrics. Pure Python loop over the vectorized engine (each run
-    is already fast); for very large grids vbt's native broadcasting can be used
-    later, but this keeps results trivially mapped to BacktestResult.
+    cheaply. Returns a list of dicts sorted by ``rank_by`` desc (default
+    'sharpe' — more robust than raw return), each with params + key metrics.
+
+    ``atr_period_grid`` (optional) sweeps the ATR window too; if omitted, only
+    the single ``atr_period`` is used. Only combos with R:R = k_tp/k_stop >= 1
+    are kept (a target tighter than the stop is never worth testing).
     """
+    periods = atr_period_grid or [atr_period]
+    valid_metrics = {"sharpe", "sortino", "calmar", "total_return", "profit_factor"}
+    if rank_by not in valid_metrics:
+        raise ValueError(f"rank_by must be one of {sorted(valid_metrics)}")
+
     results: list[dict[str, Any]] = []
-    for ks in k_stop_grid:
-        for kt in k_tp_grid:
-            res = backtest_vbt(
-                bars,
-                k_stop=ks,
-                k_tp=kt,
-                atr_period=atr_period,
-                base_risk_pct=base_risk_pct,
-                initial_capital=initial_capital,
-                fees=fees,
-            )
-            results.append(
-                {
-                    "k_stop": ks,
-                    "k_tp": kt,
-                    "rr": (kt / ks if ks else 0.0),
-                    "num_trades": res.num_trades,
-                    "hit_rate": round(res.hit_rate, 4),
-                    "total_return": round(res.total_return, 4),
-                    "max_drawdown": round(res.max_drawdown, 4),
-                }
-            )
-    results.sort(key=lambda d: d["total_return"], reverse=True)
+    for ap in periods:
+        for ks in k_stop_grid:
+            for kt in k_tp_grid:
+                if ks <= 0 or kt / ks < 1.0:   # skip R:R < 1
+                    continue
+                res = backtest_vbt(
+                    bars,
+                    k_stop=ks,
+                    k_tp=kt,
+                    atr_period=ap,
+                    base_risk_pct=base_risk_pct,
+                    initial_capital=initial_capital,
+                    fees=fees,
+                )
+                results.append(
+                    {
+                        "k_stop": ks,
+                        "k_tp": kt,
+                        "atr_period": ap,
+                        "rr": round(kt / ks, 3),
+                        "num_trades": res.num_trades,
+                        "hit_rate": round(res.hit_rate, 4),
+                        "total_return": round(res.total_return, 4),
+                        "max_drawdown": round(res.max_drawdown, 4),
+                        "sharpe": round(res.sharpe, 4),
+                        "sortino": round(res.sortino, 4),
+                        "calmar": round(res.calmar, 4),
+                        "profit_factor": res.profit_factor,
+                    }
+                )
+    results.sort(key=lambda d: d[rank_by], reverse=True)
     return results
+
+
+def walk_forward(
+    bars: list[dict[str, Any]],
+    *,
+    k_stop_grid: list[float],
+    k_tp_grid: list[float],
+    atr_period_grid: Optional[list[int]] = None,
+    n_splits: int = 4,
+    train_frac: float = 0.6,
+    base_risk_pct: float = 0.01,
+    initial_capital: float = 100_000.0,
+    fees: float = 0.0,
+    rank_by: str = "sharpe",
+) -> dict[str, Any]:
+    """Walk-forward validation: tune on in-sample, measure on out-of-sample.
+
+    Splits the bar history into ``n_splits`` contiguous windows; for each, the
+    best params are picked on the first ``train_frac`` (in-sample) and then
+    *applied* to the remaining out-of-sample slice. Robust params are those that
+    keep working out-of-sample — the anti-overfitting guard the strategy needs
+    (decision-log: walk-forward / out-of-sample, questions-for-salvatore).
+
+    Returns {'folds': [...], 'oos_mean_sharpe': x, 'oos_mean_return': y,
+             'robust_params': {...}} where robust_params is the most frequent
+    best-param combo across folds.
+    """
+    from collections import Counter
+
+    n = len(bars)
+    if n < 80:
+        return {"folds": [], "oos_mean_sharpe": 0.0, "oos_mean_return": 0.0, "robust_params": None}
+
+    fold_size = n // n_splits
+    folds: list[dict[str, Any]] = []
+    best_keys: list[tuple] = []
+
+    for i in range(n_splits):
+        lo = i * fold_size
+        hi = n if i == n_splits - 1 else (i + 1) * fold_size
+        window = bars[lo:hi]
+        if len(window) < 40:
+            continue
+        cut = int(len(window) * train_frac)
+        train, test = window[:cut], window[cut:]
+        if len(train) < 20 or len(test) < 20:
+            continue
+
+        ranked = sweep(
+            train,
+            k_stop_grid=k_stop_grid, k_tp_grid=k_tp_grid,
+            atr_period_grid=atr_period_grid,
+            base_risk_pct=base_risk_pct, initial_capital=initial_capital,
+            fees=fees, rank_by=rank_by,
+        )
+        if not ranked:
+            continue
+        best = ranked[0]
+        # apply best params out-of-sample
+        oos = backtest_vbt(
+            test,
+            k_stop=best["k_stop"], k_tp=best["k_tp"], atr_period=best["atr_period"],
+            base_risk_pct=base_risk_pct, initial_capital=initial_capital, fees=fees,
+        )
+        folds.append({
+            "fold": i,
+            "best_params": {"k_stop": best["k_stop"], "k_tp": best["k_tp"], "atr_period": best["atr_period"]},
+            "in_sample_sharpe": best["sharpe"],
+            "oos_sharpe": round(oos.sharpe, 4),
+            "oos_return": round(oos.total_return, 4),
+            "oos_trades": oos.num_trades,
+        })
+        best_keys.append((best["k_stop"], best["k_tp"], best["atr_period"]))
+
+    if not folds:
+        return {"folds": [], "oos_mean_sharpe": 0.0, "oos_mean_return": 0.0, "robust_params": None}
+
+    oos_mean_sharpe = round(sum(f["oos_sharpe"] for f in folds) / len(folds), 4)
+    oos_mean_return = round(sum(f["oos_return"] for f in folds) / len(folds), 4)
+    common = Counter(best_keys).most_common(1)[0][0]
+    robust = {"k_stop": common[0], "k_tp": common[1], "atr_period": common[2]}
+    return {
+        "folds": folds,
+        "oos_mean_sharpe": oos_mean_sharpe,
+        "oos_mean_return": oos_mean_return,
+        "robust_params": robust,
+    }

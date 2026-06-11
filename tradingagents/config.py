@@ -80,7 +80,7 @@ class CostSettings(BaseModel):
 
 
 class BacktestSettings(BaseModel):
-    engine: str = "custom"        # "custom" (1:1 live, default) | "vectorbt" (fast/sweep)
+    engine: str = "vectorbt"      # "vectorbt" (default, fast/sweep) | "custom" (1:1 live reference)
     atr_period: int = 14
     k_entry: float = 0.0
     k_stop: float = 2.0
@@ -88,6 +88,17 @@ class BacktestSettings(BaseModel):
     base_risk_pct: float = 0.01
     initial_capital: float = 100_000.0
     fees: float = 0.0             # fraction per trade; vectorbt engine only
+    # --- nightly scheduled job ---
+    nightly_enabled: bool = True  # run the threshold-validator backtest overnight
+    nightly_hour: int = 2         # local hour (0-23) to run the nightly sweep
+    lookback: int = 750           # bars per symbol pulled from the DB for the sweep
+    apply_robust: bool = False    # if True, write walk-forward robust params back to charter
+    # sweep grids (the "max potential" of vectorbt: 3-D grid + walk-forward)
+    k_stop_grid: list[float] = Field(default_factory=lambda: [1.0, 1.5, 2.0, 2.5, 3.0])
+    k_tp_grid: list[float] = Field(default_factory=lambda: [2.0, 3.0, 4.0, 5.0])
+    atr_period_grid: list[int] = Field(default_factory=lambda: [10, 14, 20])
+    rank_by: str = "sharpe"       # sharpe | sortino | calmar | total_return | profit_factor
+    wf_splits: int = 4            # walk-forward folds (anti-overfitting)
 
 
 class BrokerSettings(BaseModel):

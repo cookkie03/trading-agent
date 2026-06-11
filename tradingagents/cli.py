@@ -38,6 +38,15 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--loop", type=float, default=None, metavar="SECONDS",
                        help="Run continuously every SECONDS (default from config)")
 
+    p_bt = sub.add_parser("backtest", help="Run the threshold-validator backtest (VectorBT sweep + walk-forward)")
+    p_bt.add_argument("symbols", nargs="*", help="Optional symbol override; default = watchlist")
+    p_bt.add_argument("--config", default=None, help="Path to config.toml")
+    p_bt.add_argument("--db", default=None, help="Database URL (default local SQLite)")
+    p_bt.add_argument("--nightly", action="store_true",
+                      help="Run as a recurring overnight job (sleeps until [backtest] nightly_hour, repeats)")
+    p_bt.add_argument("--apply-robust", action="store_true",
+                      help="Write walk-forward robust params back to the charter (overrides config)")
+
     args = parser.parse_args(argv)
 
     # --- daemon subcommands ---------------------------------------------
@@ -53,11 +62,40 @@ def main(argv: list[str] | None = None) -> int:
         from . import daemon
         print(daemon.status())
         return 0
+    if args.command == "backtest":
+        return _cmd_backtest(args)
     if args.command != "run":
         parser.print_help()
         return 0
 
     return _cmd_run(args)
+
+
+def _cmd_backtest(args) -> int:
+    """Run the nightly threshold-validator backtest (one-shot or --nightly loop)."""
+    from .config import load_settings
+    from .backtesting.scheduler import nightly_loop, run_nightly_backtest
+
+    settings = load_settings(args.config)
+    if getattr(args, "apply_robust", False):
+        settings.backtest.apply_robust = True
+
+    symbols = args.symbols or None
+    print(f"backtest: engine={settings.backtest.engine} rank_by={settings.backtest.rank_by} "
+          f"grid={len(settings.backtest.k_stop_grid)}×{len(settings.backtest.k_tp_grid)}×"
+          f"{len(settings.backtest.atr_period_grid)}")
+
+    if args.nightly:
+        print(f"backtest: nightly loop armed (runs at {settings.backtest.nightly_hour:02d}:00 local)")
+        try:
+            nightly_loop(settings=settings, db_url=args.db)
+        except KeyboardInterrupt:
+            print("stopped")
+        return 0
+
+    summary = run_nightly_backtest(settings=settings, db_url=args.db, symbols=symbols)
+    print(f"backtest: {summary}")
+    return 0
 
 
 def _cmd_run(args) -> int:

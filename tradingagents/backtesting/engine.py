@@ -26,6 +26,11 @@ class BacktestResult:
     total_return: float = 0.0
     max_drawdown: float = 0.0
     final_equity: float = 0.0
+    # Extended metrics (populated by the vectorbt backend; 0.0 on the custom one)
+    sharpe: float = 0.0
+    sortino: float = 0.0
+    calmar: float = 0.0
+    profit_factor: float = 0.0
     trades: list[dict[str, Any]] = field(default_factory=list)
 
 

@@ -21,6 +21,8 @@ from typing import Optional
 _HOME = Path(os.path.expanduser("~")) / ".tradingagents"
 _PID_FILE = _HOME / "agent.pid"
 _LOG_FILE = _HOME / "agent.log"
+_BT_PID_FILE = _HOME / "backtest.pid"
+_BT_LOG_FILE = _HOME / "backtest.log"
 
 
 def _read_pid() -> Optional[int]:
@@ -51,9 +53,10 @@ def start(interval: Optional[float] = None, *, config: Optional[str] = None,
         return f"trading-agent already running (pid {running}); use 'stop' first."
 
     _HOME.mkdir(parents=True, exist_ok=True)
+    from .config import load_settings
+    settings = load_settings(config)
     if interval is None:  # default loop period from config
-        from .config import load_settings
-        interval = load_settings(config).cycle.interval_seconds
+        interval = settings.cycle.interval_seconds
 
     cmd = [sys.executable, "-m", "tradingagents.cli", "run", "--loop", str(interval)]
     if config:
@@ -71,30 +74,65 @@ def start(interval: Optional[float] = None, *, config: Optional[str] = None,
         cwd=os.getcwd(),
     )
     _PID_FILE.write_text(str(proc.pid))
+
+    # Nightly threshold-validator backtest as a SECOND detached process.
+    bt_msg = ""
+    if settings.backtest.nightly_enabled:
+        bt_cmd = [sys.executable, "-m", "tradingagents.cli", "backtest", "--nightly"]
+        if config:
+            bt_cmd += ["--config", config]
+        if db:
+            bt_cmd += ["--db", db]
+        bt_log = open(_BT_LOG_FILE, "a")
+        bt_proc = subprocess.Popen(
+            bt_cmd, stdout=bt_log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+            start_new_session=True, cwd=os.getcwd(),
+        )
+        _BT_PID_FILE.write_text(str(bt_proc.pid))
+        bt_msg = (f"\n  backtest (nightly @ {settings.backtest.nightly_hour:02d}:00): "
+                  f"pid {bt_proc.pid}, logs {_BT_LOG_FILE}")
+
     return (
         f"trading-agent started in background (pid {proc.pid}).\n"
-        f"  logs:  {_LOG_FILE}\n"
+        f"  logs:  {_LOG_FILE}{bt_msg}\n"
         f"  stop:  python -m tradingagents.cli stop"
     )
 
 
-def stop(*, timeout: float = 10.0) -> str:
-    """Signal the background system to shut down. Returns a message."""
-    pid = _read_pid()
-    if pid is None:
-        return "trading-agent is not running (no pid file)."
+def _stop_pidfile(pid_file: Path, label: str) -> str:
+    try:
+        pid = int(pid_file.read_text().strip())
+    except (FileNotFoundError, ValueError):
+        return ""
     if not _alive(pid):
-        _PID_FILE.unlink(missing_ok=True)
-        return f"trading-agent not running (stale pid {pid} cleared)."
+        pid_file.unlink(missing_ok=True)
+        return f"{label} not running (stale pid {pid} cleared)."
     try:
         os.kill(pid, signal.SIGTERM)
     except OSError as exc:  # pragma: no cover
-        return f"could not stop pid {pid}: {exc}"
-    _PID_FILE.unlink(missing_ok=True)
-    return f"trading-agent stop signal sent (pid {pid})."
+        return f"could not stop {label} pid {pid}: {exc}"
+    pid_file.unlink(missing_ok=True)
+    return f"{label} stop signal sent (pid {pid})."
+
+
+def stop(*, timeout: float = 10.0) -> str:
+    """Signal the background system (trading loop + nightly backtest) to shut down."""
+    msgs = []
+    main = _stop_pidfile(_PID_FILE, "trading-agent")
+    msgs.append(main or "trading-agent is not running (no pid file).")
+    bt = _stop_pidfile(_BT_PID_FILE, "backtest (nightly)")
+    if bt:
+        msgs.append(bt)
+    return "\n".join(msgs)
 
 
 def status() -> str:
     pid = is_running()
-    return (f"trading-agent is RUNNING (pid {pid})." if pid
-            else "trading-agent is STOPPED.")
+    main = (f"trading-agent is RUNNING (pid {pid})." if pid else "trading-agent is STOPPED.")
+    try:
+        bt_pid = int(_BT_PID_FILE.read_text().strip())
+        bt = (f"backtest (nightly) is RUNNING (pid {bt_pid})." if _alive(bt_pid)
+              else "backtest (nightly) is STOPPED (stale pid).")
+    except (FileNotFoundError, ValueError):
+        bt = "backtest (nightly) is STOPPED."
+    return f"{main}\n{bt}"
