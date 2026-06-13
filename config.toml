@@ -61,10 +61,7 @@ history_start = "2024-01-01"  # how far back to pull OHLCV
 [broker]
 # provider: "paper" = in-process simulator · "alpaca" · "ibkr"
 # mode (alpaca only): "paper" = paper-api.alpaca.markets · "live" = api.alpaca.markets
-#   -> set ALPACA_API_KEY / ALPACA_SECRET_KEY in .env when provider = "alpaca".
-# ibkr: TWS API via ib_async — a TWS or IB Gateway must be running locally
-#   (session auth, no API key in .env).
-provider = "alpaca"
+provider = "paper"
 mode     = "paper"
 # --- IBKR only (provider = "ibkr") ---
 # account_id     = ""             # None/empty = first available account

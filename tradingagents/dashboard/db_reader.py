@@ -27,7 +27,21 @@ _session_factory = None
 def _get_engine():
     global _engine
     if _engine is None:
-        _engine = create_engine(_DB_URL, echo=False)
+        import os as _os
+        _db_path = str(_DEFAULT_DB)
+        _url = _os.environ.get("TRADINGAGENTS_DATABASE_URL", f"sqlite:///{_db_path}")
+        _engine = create_engine(
+            _url,
+            echo=False,
+            connect_args={"timeout": 30},
+            pool_pre_ping=True,
+        )
+        # Enable WAL mode for concurrent reads
+        try:
+            with _engine.connect() as _c:
+                _c.execute(text("PRAGMA journal_mode=WAL"))
+        except Exception:
+            pass
     return _engine
 
 
