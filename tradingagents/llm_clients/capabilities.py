@@ -114,6 +114,16 @@ _BY_PATTERN: list[tuple[re.Pattern[str], ModelCapabilities]] = [
     (re.compile(r"^deepseek-v\d"), _DEEPSEEK_THINKING),
     (re.compile(r"^deepseek-reasoner"), _DEEPSEEK_THINKING),
     (re.compile(r"^MiniMax-M\d"), _MINIMAX_THINKING),
+    # OpenRouter routes to arbitrary upstream providers; tool_choice is not
+    # guaranteed to be supported by the downstream model, so suppress it.
+    # Many OpenRouter models (e.g. owl-alpha) support json_schema structured
+    # output but not function_calling for structured responses.
+    (re.compile(r"^openrouter/"), ModelCapabilities(
+        supports_tool_choice=False,
+        supports_json_mode=True,
+        supports_json_schema=True,
+        preferred_structured_method="json_schema",
+    )),
 ]
 
 

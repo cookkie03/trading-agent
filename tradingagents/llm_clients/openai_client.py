@@ -39,13 +39,35 @@ class NormalizedChatOpenAI(ChatOpenAI):
                 f"{self.model_name} has no structured-output method available; "
                 f"agent factories will fall back to free-text generation."
             )
-        method = method or caps.preferred_structured_method
-        # When the model rejects tool_choice, suppress langchain's hardcoded
-        # value. The schema is still bound as a tool — exactly what
-        # DeepSeek's official tool-calling examples do.
-        if method == "function_calling" and not caps.supports_tool_choice:
-            kwargs.setdefault("tool_choice", None)
-        return super().with_structured_output(schema, method=method, **kwargs)
+
+        # Build the ordered list of methods to try.  The preferred method
+        # (from the capability table) goes first; the rest follow in a
+        # deterministic fallback order so that any OpenRouter model works
+        # even when its actual capabilities don't match the table entry.
+        preferred = method or caps.preferred_structured_method
+        fallback_order = [preferred]
+        for candidate in ("json_schema", "json_mode", "function_calling"):
+            if candidate != preferred:
+                fallback_order.append(candidate)
+
+        last_err: Exception | None = None
+        for try_method in fallback_order:
+            try_kwargs = dict(kwargs)
+            if try_method == "function_calling" and not caps.supports_tool_choice:
+                try_kwargs.setdefault("tool_choice", None)
+            try:
+                return super().with_structured_output(schema, method=try_method, **try_kwargs)
+            except Exception as e:
+                last_err = e
+                # If langchain/OpenProvider rejected the *method* itself
+                # (HTTP 400/404 about the method), try the next one.
+                # If the failure was a *parsing* error (model returned
+                # text that didn't match the schema) we still try the next
+                # method because a stricter approach (json_schema) may
+                # produce compliant output.
+                continue
+
+        raise last_err  # type: ignore[misc]
 
 
 def _input_to_messages(input_: Any) -> list:
