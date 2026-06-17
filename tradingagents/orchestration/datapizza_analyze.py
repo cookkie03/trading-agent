@@ -2,8 +2,7 @@
 
 Analyzer is the contract: given a session and a symbol, produce a (possibly
 approved) ResearchState — or None to skip. ``make_brain_analyzer`` wires the
-real brain (Datapizza agents); ``hold_analyzer`` is a no-LLM stub so the cycle
-runner is testable without any model.
+real brain (Datapizza agents); ``hold_analyzer`` is a no-LLM stub.
 """
 
 from __future__ import annotations
@@ -22,7 +21,7 @@ class Analyzer(Protocol):
 
 def make_brain_analyzer(llm: Any, **brain_kwargs: Any) -> Analyzer:
     """Build an Analyzer backed by the Datapizza brain agents."""
-    from .datapizza_graph import analyze_symbol
+    from ..brain.datapizza_graph import analyze_symbol
 
     def analyzer(session: Session, symbol: str) -> ResearchState:
         return analyze_symbol(session, symbol, llm, **brain_kwargs)
