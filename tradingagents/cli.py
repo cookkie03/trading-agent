@@ -14,6 +14,9 @@ All tunable parameters live in ``config.toml``; secrets in ``.env``.
 from __future__ import annotations
 
 import argparse
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -52,15 +55,15 @@ def main(argv: list[str] | None = None) -> int:
     # --- daemon subcommands ---------------------------------------------
     if args.command == "start":
         from . import daemon
-        print(daemon.start(interval=args.interval, config=args.config, db=args.db))
+        logger.info(daemon.start(interval=args.interval, config=args.config, db=args.db))
         return 0
     if args.command == "stop":
         from . import daemon
-        print(daemon.stop())
+        logger.info(daemon.stop())
         return 0
     if args.command == "status":
         from . import daemon
-        print(daemon.status())
+        logger.info(daemon.status())
         return 0
     if args.command == "backtest":
         return _cmd_backtest(args)
@@ -81,20 +84,23 @@ def _cmd_backtest(args) -> int:
         settings.backtest.apply_robust = True
 
     symbols = args.symbols or None
-    print(f"backtest: engine={settings.backtest.engine} rank_by={settings.backtest.rank_by} "
-          f"grid={len(settings.backtest.k_stop_grid)}×{len(settings.backtest.k_tp_grid)}×"
-          f"{len(settings.backtest.atr_period_grid)}")
+    logger.info(
+        "backtest: engine=%s rank_by=%s grid=%d×%d×%d",
+        settings.backtest.engine, settings.backtest.rank_by,
+        len(settings.backtest.k_stop_grid), len(settings.backtest.k_tp_grid),
+        len(settings.backtest.atr_period_grid),
+    )
 
     if args.nightly:
-        print(f"backtest: nightly loop armed (runs at {settings.backtest.nightly_hour:02d}:00 local)")
+        logger.info("backtest: nightly loop armed (runs at %02d:00 local)", settings.backtest.nightly_hour)
         try:
             nightly_loop(settings=settings, db_url=args.db)
         except KeyboardInterrupt:
-            print("stopped")
+            logger.info("stopped")
         return 0
 
     summary = run_nightly_backtest(settings=settings, db_url=args.db, symbols=symbols)
-    print(f"backtest: {summary}")
+    logger.info("backtest: %s", summary)
     return 0
 
 
@@ -106,9 +112,9 @@ def _cmd_run(args) -> int:
     settings = load_settings(args.config)
     start = args.start or settings.data.history_start
 
-    print(
-        f"model: provider={settings.llm.provider} "
-        f"deep={settings.llm.deep_model} quick={settings.llm.quick_model}"
+    logger.info(
+        "model: provider=%s deep=%s quick=%s",
+        settings.llm.provider, settings.llm.deep_model, settings.llm.quick_model,
     )
 
     from .brain import DatapizzaLLM as ForkStructuredLLM
@@ -144,22 +150,22 @@ def _cmd_run(args) -> int:
     if bs.provider == "alpaca":
         has_keys = os.environ.get("ALPACA_API_KEY") and os.environ.get("ALPACA_SECRET_KEY")
         if not has_keys:
-            print("broker: alpaca selected but ALPACA keys missing -> PaperBroker (simulated)")
+            logger.warning("broker: alpaca selected but ALPACA keys missing -> PaperBroker (simulated)")
         else:
             from .broker.alpaca import AlpacaBroker, alpaca_base_url
 
             broker = AlpacaBroker(base_url=alpaca_base_url(bs.mode))
             banner = "LIVE — real money" if bs.mode == "live" else "paper"
-            print(f"broker: Alpaca ({banner})")
+            logger.info("broker: Alpaca (%s)", banner)
     elif bs.provider == "ibkr":
         from .broker.ibkr import IBKRBroker, default_port
 
         port = bs.ibkr_port or default_port(bs.mode)
         broker = IBKRBroker(host=bs.ibkr_host, port=port, client_id=bs.ibkr_client_id, account=bs.account_id)
         banner = "LIVE — real money" if bs.mode == "live" else "paper"
-        print(f"broker: IBKR TWS API ({banner}) {bs.ibkr_host}:{port}")
+        logger.info("broker: IBKR TWS API (%s) %s:%d", banner, bs.ibkr_host, port)
     else:
-        print("broker: PaperBroker (simulated)")
+        logger.info("broker: PaperBroker (simulated)")
 
     fee = settings.costs.commission_per_trade
     commission = PerTradeCommission(fee) if fee > 0 else ZeroCommission()
@@ -205,25 +211,25 @@ def _cmd_run(args) -> int:
     from .app import run_once
 
     def _print(report):
-        print(
-            f"cycle: triggers={report.triggers} analyzed={report.analyzed} "
-            f"traded={report.traded} closed={report.closed} "
-            f"skipped_cost={report.skipped_cost} skipped_not_tradable={report.skipped_not_tradable}"
+        logger.info(
+            "cycle: triggers=%d analyzed=%d traded=%d closed=%d skipped_cost=%d skipped_not_tradable=%d",
+            report.triggers, report.analyzed, report.traded, report.closed,
+            report.skipped_cost, report.skipped_not_tradable,
         )
         for t in report.trades:
-            print(f"  {t.action.upper()} {t.symbol} qty={t.quantity} @ {t.entry_price} -> {t.status}")
+            logger.info("  %s %s qty=%s @ %s -> %s", t.action.upper(), t.symbol, t.quantity, t.entry_price, t.status)
 
     interval = args.loop if args.loop is not None else None
     if interval:
         import time
 
-        print(f"autonomous loop every {interval}s (Ctrl-C to stop)")
+        logger.info("autonomous loop every %ss (Ctrl-C to stop)", interval)
         try:
             while True:
                 _print(run_once(symbols, **deps))
                 time.sleep(interval)
         except KeyboardInterrupt:
-            print("stopped")
+            logger.info("stopped")
         return 0
 
     _print(run_once(symbols, **deps))
