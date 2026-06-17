@@ -111,7 +111,7 @@ def _cmd_run(args) -> int:
         f"deep={settings.llm.deep_model} quick={settings.llm.quick_model}"
     )
 
-    from .brain import ForkStructuredLLM
+    from .brain import DatapizzaLLM as ForkStructuredLLM
     from .brain.datapizza_tools import Extractors
     from .broker import PerTradeCommission, ZeroCommission
     from .ingestion import (

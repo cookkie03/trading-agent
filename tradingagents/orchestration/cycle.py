@@ -30,7 +30,7 @@ from ..execution import (
 )
 from ..storage import repository as repo
 from ..storage.models import Trade
-from .analyze import Analyzer
+from .datapizza_analyze import Analyzer
 from .triggers import TriggerEvent, collect_triggers
 
 # Trigger types that, on a non-watchlist universe ticker, get it onto the

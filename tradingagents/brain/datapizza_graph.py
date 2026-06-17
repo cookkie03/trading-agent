@@ -92,6 +92,7 @@ def _run_pm(
     symbol: str,
     llm: Any,
     research_state: ResearchState,
+    base_risk_pct: float = 0.01,
 ) -> None:
     """Run the Portfolio Manager agent — aggregates desk opinions into final call."""
     opinions = [o.model_dump(mode="json") for o in research_state.agent_opinions]
@@ -122,6 +123,7 @@ def _run_pm(
             last_close, snap_atr, result.direction,
             k_entry=result.k_entry, k_stop=result.k_stop, k_tp=result.k_tp,
         )
+        research_state.position_sizing_pct = base_risk_pct * conviction_multiplier(result.direction)
 
 
 def _run_risk(
@@ -226,7 +228,7 @@ def analyze_symbol(
                         research_state, context.fundamentals_context, extractors, agent_contexts)
 
         # --- PM aggregator ---
-        _run_pm(session, symbol, llm, research_state)
+        _run_pm(session, symbol, llm, research_state, base_risk_pct)
 
         # --- Risk gate ---
         _run_risk(session, symbol, llm, research_state, charter, base_risk_pct, agent_contexts)

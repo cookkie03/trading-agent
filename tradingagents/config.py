@@ -127,7 +127,7 @@ class Settings(BaseModel):
 
     # -- convenience views -------------------------------------------------
     def llm_config(self) -> dict[str, Any]:
-        """Shape expected by ForkStructuredLLM / default_config."""
+        """Shape expected by DatapizzaLLM / default_config."""
         return {
             "llm_provider": self.llm.provider,
             "deep_think_llm": self.llm.deep_model,

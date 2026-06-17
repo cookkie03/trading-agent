@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from tradingagents.brain import DeskOpinion, PMDecision, RiskDecision
-from tradingagents.brain.director import analyze_batch
+from tradingagents.brain.datapizza_director import analyze_batch
 from tradingagents.broker import PaperBroker
 from tradingagents.domain import Direction, RiskVerdict
 from tradingagents.execution import PortfolioProposal, admit_within_statute

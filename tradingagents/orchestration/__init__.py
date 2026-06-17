@@ -5,11 +5,8 @@ Flow (the funnel + trigger engine of the wiki):
     Trigger Engine  ->  priority queue  ->  analyze (Datapizza agents)  ->  cost gate  ->  execute
 
 The ``analyze`` step is a pluggable hook: Datapizza agents implement the
-``Analyzer`` signature; until then a ``hold_analyzer`` stub keeps the runner
-fully testable without any LLM.
-
-This module re-exports the Datapizza-based implementations, keeping backward
-compatibility with the rest of the codebase (cycle.py, daemon, CLI).
+``Analyzer`` signature; ``hold_analyzer`` is a no-LLM stub so the runner
+is fully testable without any model.
 """
 
 from .triggers import (
