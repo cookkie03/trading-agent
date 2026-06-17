@@ -32,7 +32,7 @@ from .ingestion.social_ingest import SocialFetcher
 from .ingestion.screening import screen_ticker
 from .benchmark import ingest_benchmarks
 from .orchestration import CycleReport, run_cycle
-from .orchestration.analyze import Analyzer
+from .orchestration.datapizza_analyze import Analyzer
 from .storage import database, init_db
 from .storage import repository as repo
 from .universe import Sp500Source, seed_watchlist, sync_universe

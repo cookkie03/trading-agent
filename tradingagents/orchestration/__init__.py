@@ -2,11 +2,14 @@
 
 Flow (the funnel + trigger engine of the wiki):
 
-    Trigger Engine  ->  priority queue  ->  analyze (LLM graph)  ->  cost gate  ->  execute
+    Trigger Engine  ->  priority queue  ->  analyze (Datapizza agents)  ->  cost gate  ->  execute
 
-The ``analyze`` step is a pluggable hook: Luca's LangGraph implements the
+The ``analyze`` step is a pluggable hook: Datapizza agents implement the
 ``Analyzer`` signature; until then a ``hold_analyzer`` stub keeps the runner
 fully testable without any LLM.
+
+This module re-exports the Datapizza-based implementations, keeping backward
+compatibility with the rest of the codebase (cycle.py, daemon, CLI).
 """
 
 from .triggers import (
@@ -16,7 +19,7 @@ from .triggers import (
     price_alerts,
     watchlist_candidates,
 )
-from .analyze import Analyzer, hold_analyzer, make_brain_analyzer
+from .datapizza_analyze import Analyzer, hold_analyzer, make_brain_analyzer
 from .cycle import CycleReport, run_cycle
 
 __all__ = [
