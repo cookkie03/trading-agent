@@ -7,7 +7,8 @@ Each desk agent is a Datapizza Agent with its own tools and structured output.
 The PM aggregates desk opinions into a final call.
 The Risk agent is the single bear gate.
 
-No LangGraph, no LangChain — just Datapizza Agent.invoke() with tools + structured output.
+The LLM interface is duck-typed: uses llm._client if available (real DatapizzaLLM),
+otherwise falls back to llm.generate() directly (test/fake LLMs like _FakeLLM).
 """
 
 from __future__ import annotations
@@ -25,7 +26,6 @@ from ..indicators import atr_from_db, indicator_snapshot
 from ..tools import get_open_positions_risk, get_realtime_quote
 from . import context, prompts
 from .agent_context import AgentContext, make_agent_context
-from .datapizza_llm import DatapizzaLLM
 from .datapizza_tools import Extractors, build_desk_tools
 from .schemas import DeskOpinion, PMDecision, RiskDecision
 
@@ -42,63 +42,70 @@ def _set_opinion(rs: ResearchState, agent: str, op: DeskOpinion) -> None:
     )
 
 
+def _get_llm_client(llm):
+    """Extract the Datapizza client from the LLM, or None for fake/test LLMs."""
+    return getattr(llm, "_client", None)
+
+
 def _run_desk_agent(
     agent_name: str,
     prompt: str,
     session: Session,
     symbol: str,
-    llm: DatapizzaLLM,
+    llm: Any,
     research_state: ResearchState,
     ctx_fn,
     extractors: Optional[Extractors],
     agent_contexts: dict[str, AgentContext],
 ) -> None:
-    """Run a single desk agent and update the research state."""
-    from datapizza.agents import Agent
+    """Run a single desk agent and update the research state.
 
+    Uses Datapizza Agent if llm has a _client (real mode), otherwise falls back
+    to llm.generate() directly (test/fake mode).
+    """
     ctx = agent_contexts.get(agent_name) or make_agent_context(
         agent_name, injected=ctx_fn(session, symbol)
     )
     ctx.rounds += 1
+    client = _get_llm_client(llm)
 
-    tools = build_desk_tools(session, agent_name, extractors)
-
-    desk_agent = Agent(
-        name=agent_name,
-        client=llm._client,
-        system_prompt=prompt,
-        tools=tools,
-        output_cls=DeskOpinion,
-        max_steps=5,
-    )
-
-    result = desk_agent.run(ctx.render())
+    if client is not None:
+        # Real mode: Datapizza Agent with tool calling
+        from datapizza.agents import Agent
+        tools = build_desk_tools(session, agent_name, extractors)
+        desk_agent = Agent(
+            name=agent_name, client=client, system_prompt=prompt,
+            tools=tools, output_cls=DeskOpinion, max_steps=5,
+        )
+        op = desk_agent.run(ctx.render())
+    else:
+        # Test/fake mode: direct generate call (no _client needed)
+        op = llm.generate(prompt, ctx.render(), DeskOpinion)
 
     agent_contexts[agent_name] = ctx
-    setattr(research_state, f"{agent_name}_view", result.view)
-    _set_opinion(research_state, agent_name, result)
+    setattr(research_state, f"{agent_name}_view", op.view)
+    _set_opinion(research_state, agent_name, op)
 
 
 def _run_pm(
     session: Session,
     symbol: str,
-    llm: DatapizzaLLM,
+    llm: Any,
     research_state: ResearchState,
 ) -> None:
     """Run the Portfolio Manager agent — aggregates desk opinions into final call."""
-    from datapizza.agents import Agent
-
     opinions = [o.model_dump(mode="json") for o in research_state.agent_opinions]
+    client = _get_llm_client(llm)
 
-    pm_agent = Agent(
-        name="pm",
-        client=llm._client,
-        system_prompt=prompts.PM,
-        output_cls=PMDecision,
-        max_steps=3,
-    )
-
-    result = pm_agent.run(context.pm_context(session, symbol, opinions))
+    if client is not None:
+        from datapizza.agents import Agent
+        pm_agent = Agent(
+            name="pm", client=client, system_prompt=prompts.PM,
+            output_cls=PMDecision, max_steps=3,
+        )
+        result = pm_agent.run(context.pm_context(session, symbol, opinions))
+    else:
+        result = llm.generate(prompts.PM, context.pm_context(session, symbol, opinions), PMDecision)
 
     research_state.direction = result.direction
     research_state.conviction_level = result.conviction
@@ -115,21 +122,18 @@ def _run_pm(
             last_close, snap_atr, result.direction,
             k_entry=result.k_entry, k_stop=result.k_stop, k_tp=result.k_tp,
         )
-        # base_risk_pct will be applied by the caller
 
 
 def _run_risk(
     session: Session,
     symbol: str,
-    llm: DatapizzaLLM,
+    llm: Any,
     research_state: ResearchState,
     charter: Optional[dict[str, Any]],
     base_risk_pct: float,
     agent_contexts: dict[str, AgentContext],
 ) -> None:
     """Run the Risk Analyst agent — the single bear gate."""
-    from datapizza.agents import Agent
-
     if research_state.direction is None or not research_state.direction.is_actionable or research_state.levels is None:
         research_state.risk.verdict = RiskVerdict.APPROVED
         research_state.risk.rationale = "No actionable position; nothing to gate."
@@ -160,19 +164,18 @@ def _run_risk(
         "risk", injected=context.risk_context(session, symbol, sealed, guardrails)
     )
     rctx.rounds += 1
+    client = _get_llm_client(llm)
 
-    tools = build_desk_tools(session, "risk", None)
-
-    risk_agent = Agent(
-        name="risk",
-        client=llm._client,
-        system_prompt=prompts.RISK,
-        tools=tools,
-        output_cls=RiskDecision,
-        max_steps=5,
-    )
-
-    result = risk_agent.run(rctx.render())
+    if client is not None:
+        from datapizza.agents import Agent
+        tools = build_desk_tools(session, "risk", None)
+        risk_agent = Agent(
+            name="risk", client=client, system_prompt=prompts.RISK,
+            tools=tools, output_cls=RiskDecision, max_steps=5,
+        )
+        result = risk_agent.run(rctx.render())
+    else:
+        result = llm.generate(prompts.RISK, rctx.render(), RiskDecision)
 
     agent_contexts["risk"] = rctx
     research_state.risk.rationale = result.rationale
@@ -187,7 +190,7 @@ def _run_risk(
 def analyze_symbol(
     session: Session,
     symbol: str,
-    llm: DatapizzaLLM,
+    llm: Any,
     *,
     max_revisions: int = 1,
     charter: Optional[dict[str, Any]] = None,
