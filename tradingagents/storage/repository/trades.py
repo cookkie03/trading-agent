@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from ..models import Instrument, Trade
 
 from .portfolio import latest_portfolio_snapshot
-from .instrument import instrument_sector as _instrument_sector
 
 
 def record_trade(session: Session, symbol: str, action: str, **fields: Any) -> Trade:
@@ -45,7 +44,7 @@ def sector_exposure(session: Session) -> dict[str, float]:
     total = float(snap.total_value) if snap is not None else 0.0
     exposure: dict[str, float] = {}
     for t in open_trades(session):
-        sector = _instrument_sector(session, t.symbol)
+        sector = instrument_sector(session, t.symbol)
         if not sector or t.entry_price is None or not t.quantity:
             continue
         exposure[sector] = exposure.get(sector, 0.0) + t.entry_price * t.quantity

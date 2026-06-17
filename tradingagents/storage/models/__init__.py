@@ -1,4 +1,3 @@
-from __future__ import annotations
 
 from .instrument import Instrument, TickerCard, TickerEvent
 from .market import PriceBar, NewsItem, SocialPost, MacroPoint, FundamentalSnapshot

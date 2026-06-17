@@ -8,6 +8,29 @@ from sqlalchemy.orm import Session
 
 from ..models import CharterRule, DecisionLog
 
+DEFAULT_CHARTER: dict[str, Any] = {
+    "min_risk_reward": 1.5,
+    "max_position_pct": 0.10,
+    "cash_reserve_pct": 0.10,
+    "max_portfolio_var": 0.10,
+    "base_risk_pct": 0.01,
+    "heat_max_pct": 0.06,
+    "max_sector_pct": 0.30,
+}
+
+
+def load_charter(session: Session) -> dict[str, Any]:
+    """Load the whole Statute as a {key: value} dict (drives the Risk guardrails)."""
+    return {r.key: r.value for r in session.scalars(select(CharterRule))}
+
+
+def seed_default_charter(session: Session, overrides: Optional[dict[str, Any]] = None) -> None:
+    """Insert the default Statute rules for any key not already present."""
+    values = {**DEFAULT_CHARTER, **(overrides or {})}
+    for key, value in values.items():
+        if session.get(CharterRule, key) is None:
+            set_charter_rule(session, key, value)
+
 
 def log_decision(
     session: Session,
@@ -49,6 +72,11 @@ def recent_decisions(
             .limit(limit)
         )
     return list(session.scalars(stmt))
+
+
+def get_charter_rule(session: Session, key: str, default: Any = None) -> Any:
+    rule = session.get(CharterRule, key)
+    return rule.value if rule is not None else default
 
 
 def set_charter_rule(

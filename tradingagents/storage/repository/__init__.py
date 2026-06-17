@@ -55,8 +55,12 @@ from .trades import (
     trade_by_client_order_id,
 )
 from .charter import (
+    DEFAULT_CHARTER,
+    get_charter_rule,
+    load_charter,
     log_decision,
     recent_decisions,
+    seed_default_charter,
     set_charter_rule,
 )
 
@@ -109,7 +113,11 @@ __all__ = [
     "instrument_sector",
     "sector_exposure",
     # charter
+    "DEFAULT_CHARTER",
+    "get_charter_rule",
+    "load_charter",
     "log_decision",
     "recent_decisions",
+    "seed_default_charter",
     "set_charter_rule",
 ]
