@@ -123,6 +123,7 @@ def _run_pm(
             last_close, snap_atr, result.direction,
             k_entry=result.k_entry, k_stop=result.k_stop, k_tp=result.k_tp,
         )
+    if result.direction.is_actionable:
         research_state.position_sizing_pct = base_risk_pct * conviction_multiplier(result.direction)
 
 
