@@ -15,11 +15,11 @@ from sqlalchemy.orm import Session
 from ..broker.base import Broker
 from ..storage import repository as repo
 from ..storage.models import PortfolioSnapshot
+from .helpers import latest_close
 
 
 def _latest_close(session: Session, symbol: str) -> Optional[float]:
-    bar = repo.latest_price(session, symbol)
-    return bar.close if bar is not None else None
+    return latest_close(session, symbol)
 
 
 def run_mantainer(session: Session, broker: Optional[Broker] = None) -> PortfolioSnapshot:

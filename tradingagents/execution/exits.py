@@ -18,11 +18,11 @@ from sqlalchemy.orm import Session
 from ..broker.base import Broker, OrderRequest
 from ..storage import repository as repo
 from ..storage.models import Trade
+from .helpers import latest_close
 
 
 def _latest_close(session: Session, symbol: str) -> Optional[float]:
-    bar = repo.latest_price(session, symbol)
-    return bar.close if bar is not None else None
+    return latest_close(session, symbol)
 
 
 def manage_exits(
