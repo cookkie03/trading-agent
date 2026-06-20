@@ -66,9 +66,30 @@ autonomous loop (periodical synthesis)
 | `backtesting/`                   | deterministic threshold validator                                                         |
 | `app.py` · `cli.py`           | runnable entry point                                                                      |
 
+### Core Abstractions (Dependency Map)
+
+The **5 most connected nodes** that form the architectural spine:
+
+1. **`PaperBroker`** (33 edges) — the central broker adapter; swappable for AlpacaBroker or IBKRBroker
+2. **`run_cycle()`** (24 edges) — the orchestration heartbeat; invokes trigger → brain → execution → mantainer
+3. **`init_db()` + `reset_engine()`** (23 + 21 edges) — storage bootstrap and test isolation
+4. **`get_capabilities()`** (29 edges) — LLM provider routing; declarative capability table for OpenAI-compatible clients
+5. **`analyze_symbol()`** (brain graph entry point) — per-ticker Evaluator; orchestrates 2 desks → PM → Risk
+
+Explore the full **[dependency graph](graphify-out/graph.html)** for deeper relationship tracing (2478 nodes · 3501 edges · 178 communities). See [`graphify-out/GRAPH_REPORT.md`](graphify-out/GRAPH_REPORT.md) for extraction stats.
+
 ## 🛠️ Tech stack
 
 Python 3.13 · LangGraph / LangChain · OpenRouter · SQLAlchemy 2 (SQLite / PostgreSQL + TimescaleDB) · Pydantic · pytest · `uv`.
+
+## 📊 Code Structure (Graph Analysis)
+
+- **148 Python files** · ~46K lines of code
+- **2478 semantic nodes** · **3501 edges** · **178 communities** (Graphify AST extraction, refreshed 2026-06-20)
+- **Extraction quality:** 85% native code relationships · 15% inferred (confidence 0.75)
+- **Entry points:** dependency graph available at [`graphify-out/`](graphify-out/) (interactive HTML + JSON)
+
+See [`graphify-out/GRAPH_REPORT.md`](graphify-out/GRAPH_REPORT.md) for the full community breakdown.
 
 ## 🚀 Quick start
 
@@ -140,7 +161,18 @@ The offline suite needs no network and no API keys — the brain runs against a 
 - **Few strong agents, not many weak ones.** Specialised desks with powerful tools, minimal context rot.
 - **Alpha-first / incremental.** Get a running slice, then deepen.
 
-## 🛣️ Roadmap
+## � Architectural Insights (from Code Graph)
+
+Surprising connections revealed by static analysis:
+
+- **`test_alpaca_account_real()` → `AlpacaBroker`** — integration tests directly exercise broker state
+- **`test_sentiment_context_*()` → `sentiment_context()`** — social & news tests validate agent context enrichment
+- **`_FetcherUp` ↔ `ResearchState`, `Extractors`** — test harness couples offline LLM with live vendor adapters
+- **Colocated broker adapters** — `PaperBroker`, `AlpacaBroker`, `IBKRBroker` share commission & order models at module level
+
+Explore these relationships in the **[interactive dependency graph](graphify-out/graph.html)** — zoom into any community hub to trace data and signal flow.
+
+## �🛣️ Roadmap
 
 - **Read-only dashboard** (Streamlit, SFC-fund style) to observe the running
   daemon: portfolio, NAV, watchlist/universe, decisions and trades, alpha vs
