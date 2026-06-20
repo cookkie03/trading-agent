@@ -27,7 +27,7 @@ class Base(DeclarativeBase):
     """Declarative base shared by every model."""
 
 
-_DEFAULT_HOME = Path(os.path.expanduser("~")) / ".tradingagents"
+_DEFAULT_HOME = Path(__file__).resolve().parents[2] / ".tradingagents"
 
 _engine: Optional[Engine] = None
 _SessionLocal: Optional[sessionmaker] = None

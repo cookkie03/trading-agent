@@ -1,6 +1,6 @@
 import os
 
-_TRADINGAGENTS_HOME = os.path.join(os.path.expanduser("~"), ".tradingagents")
+_TRADINGAGENTS_HOME = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".tradingagents"))
 
 # NOTE: parameters are configured in config.toml (the single global config),
 # NOT via environment variables — the .env holds only secrets (API keys).

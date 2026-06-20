@@ -78,19 +78,30 @@ def ingest_price_bars(
         existing = {_naive(t) for t in stored}
         bars = [b for b in bars if _naive(b["ts"]) not in existing]
 
+    import math
     today = datetime.now(timezone.utc).date()
     rows: list[dict[str, Any]] = []
     for b in bars:
+        try:
+            o = float(b["open"])
+            h = float(b["high"])
+            l = float(b["low"])
+            c = float(b["close"])
+            if math.isnan(o) or math.isnan(h) or math.isnan(l) or math.isnan(c):
+                continue
+        except (ValueError, TypeError, KeyError):
+            continue
+
         ts: datetime = b["ts"]
         rows.append(
             {
                 "ts": ts,
                 "interval": interval,
-                "open": float(b["open"]),
-                "high": float(b["high"]),
-                "low": float(b["low"]),
-                "close": float(b["close"]),
-                "volume": (float(b["volume"]) if b.get("volume") is not None else None),
+                "open": o,
+                "high": h,
+                "low": l,
+                "close": c,
+                "volume": (float(b["volume"]) if b.get("volume") is not None and not math.isnan(float(b["volume"])) else None),
                 "vendor": vendor or b.get("vendor"),
                 "reference_date": ts.date() if isinstance(ts, datetime) else None,
                 "publication_date": today,

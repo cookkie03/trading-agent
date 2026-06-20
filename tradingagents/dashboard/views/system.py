@@ -52,7 +52,7 @@ def page_system() -> None:
     # ── Log file ─────────────────────────────────────────────────────────
     st.markdown("---")
     st.subheader("Log del Daemon")
-    log_path = Path.home() / ".tradingagents" / "agent.log"
+    log_path = Path(__file__).resolve().parents[3] / ".tradingagents" / "agent.log"
     if log_path.exists():
         with open(log_path) as f:
             lines = f.readlines()

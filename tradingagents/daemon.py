@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-_HOME = Path(os.path.expanduser("~")) / ".tradingagents"
+_HOME = Path(__file__).resolve().parents[1] / ".tradingagents"
 _PID_FILE = _HOME / "agent.pid"
 _LOG_FILE = _HOME / "agent.log"
 _BT_PID_FILE = _HOME / "backtest.pid"

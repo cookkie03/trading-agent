@@ -105,9 +105,16 @@ def _create_datapizza_client(provider: str, model: str, backend_url: Optional[st
         from datapizza.clients.openai import OpenAIClient
         import os
         kwargs: dict[str, Any] = {"model": model}
+        
+        # If openrouter, default base_url to openrouter.ai and use OPENROUTER_API_KEY
+        if provider == "openrouter":
+            if not backend_url:
+                backend_url = "https://openrouter.ai/api/v1"
+            api_key = os.environ.get("OPENROUTER_API_KEY", os.environ.get("OPENAI_API_KEY", ""))
+        else:
+            api_key = os.environ.get("OPENAI_API_KEY", "")
+
         if backend_url:
             kwargs["base_url"] = backend_url
-        # API key from env (same pattern as before)
-        api_key = os.environ.get("OPENAI_API_KEY", "")
         kwargs["api_key"] = api_key
         return OpenAIClient(**kwargs)

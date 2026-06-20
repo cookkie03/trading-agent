@@ -61,7 +61,7 @@ history_start = "2024-01-01"  # how far back to pull OHLCV
 [broker]
 # provider: "paper" = in-process simulator · "alpaca" · "ibkr"
 # mode (alpaca only): "paper" = paper-api.alpaca.markets · "live" = api.alpaca.markets
-provider = "paper"
+provider = "alpaca"
 mode     = "paper"
 # --- IBKR only (provider = "ibkr") ---
 # account_id     = ""             # None/empty = first available account

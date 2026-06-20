@@ -9,3 +9,10 @@ enableWebsocketCompression = true
 [browser]
 serverAddress = "trading.lucamanca.synology.me"
 gatherUsageStats = false
+
+[theme]
+primaryColor = "#6366f1"
+backgroundColor = "#030307"
+secondaryBackgroundColor = "#0a0a14"
+textColor = "#f1f5f9"
+font = "sans serif"

@@ -53,12 +53,12 @@ from tradingagents.dashboard.metrics import (
 )
 
 # ── Page imports ─────────────────────────────────────────────────────────────
-from tradingagents.dashboard.pages.overview import page_dashboard
-from tradingagents.dashboard.pages.watchlist import page_watchlist
-from tradingagents.dashboard.pages.decisions import page_decisions
-from tradingagents.dashboard.pages.trades import page_trades
-from tradingagents.dashboard.pages.ticker import page_ticker
-from tradingagents.dashboard.pages.system import page_system
+from tradingagents.dashboard.views.overview import page_dashboard
+from tradingagents.dashboard.views.watchlist import page_watchlist
+from tradingagents.dashboard.views.decisions import page_decisions
+from tradingagents.dashboard.views.trades import page_trades
+from tradingagents.dashboard.views.ticker import page_ticker
+from tradingagents.dashboard.views.system import page_system
 from tradingagents.dashboard.components.sidebar import render_sidebar
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -84,22 +84,22 @@ st.markdown("""
 
     /* ── Sidebar ── */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #080810 0%, #0d0d1a 100%);
-        border-right: 1px solid rgba(99,102,241,0.12);
+        background: #0a0a14;
+        border-right: 1px solid rgba(255,255,255,0.05);
     }
 
     /* ── KPI Cards ── */
     .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:0.7rem; margin-bottom:0.8rem; }
     @media(max-width:768px){ .kpi-grid{grid-template-columns:repeat(2,1fr);} }
     .kpi-card {
-        background: linear-gradient(135deg, #0d0d1a 0%, #13132a 100%);
-        border: 1px solid rgba(99,102,241,0.10); border-radius:10px;
-        padding: 0.9rem 1.1rem; transition: border-color 0.2s;
+        background: #0a0a14;
+        border: 1px solid rgba(255,255,255,0.05); border-radius:10px;
+        padding: 0.9rem 1.1rem; transition: border-color 0.2s, background-color 0.2s;
     }
-    .kpi-card:hover { border-color: rgba(99,102,241,0.3); }
-    .kpi-label { font-size:0.65rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:0.35rem; }
-    .kpi-value { font-size:1.45rem; font-weight:700; color:#e2e8f0; line-height:1.2; }
-    .kpi-delta { font-size:0.72rem; font-weight:500; margin-top:0.25rem; color:#64748b; }
+    .kpi-card:hover { border-color: rgba(99,102,241,0.3); background: #0f0f20; }
+    .kpi-label { font-size:0.65rem; font-weight:600; color:#94a3b8; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:0.35rem; }
+    .kpi-value { font-size:1.45rem; font-weight:700; color:#f1f5f9; line-height:1.2; }
+    .kpi-delta { font-size:0.72rem; font-weight:500; margin-top:0.25rem; color:#cbd5e1; }
     .pos { color:#22c55e !important; font-weight:600; }
     .neg { color:#ef4444 !important; font-weight:600; }
     .accent-purple { border-left:3px solid #6366f1; }
@@ -109,23 +109,24 @@ st.markdown("""
 
     /* ── Section Headers ── */
     .section-header {
-        font-size:0.8rem; font-weight:600; color:#94a3b8; text-transform:uppercase;
+        font-size:0.8rem; font-weight:600; color:#cbd5e1; text-transform:uppercase;
         letter-spacing:0.8px; margin:1.2rem 0 0.5rem; padding-bottom:0.4rem;
-        border-bottom:1px solid rgba(99,102,241,0.10);
+        border-bottom:1px solid rgba(255,255,255,0.05);
     }
 
     /* ── Streamlit Overrides ── */
     [data-testid="stMetric"] {
-        background: linear-gradient(135deg, #0d0d1a 0%, #13132a 100%);
-        border:1px solid rgba(99,102,241,0.08); border-radius:10px; padding:0.7rem 0.9rem;
+        background: #0a0a14;
+        border: 1px solid rgba(255,255,255,0.05); border-radius:10px; padding:0.7rem 0.9rem;
     }
-    [data-testid="stMetricLabel"] { font-size:0.68rem !important; text-transform:uppercase; letter-spacing:0.4px; }
+    [data-testid="stMetricLabel"] { font-size:0.68rem !important; text-transform:uppercase; letter-spacing:0.4px; color: #94a3b8 !important; }
+    [data-testid="stMetricValue"] { color: #f1f5f9 !important; }
     [data-testid="stExpander"] {
-        border:1px solid rgba(99,102,241,0.08); border-radius:10px; background:rgba(13,13,26,0.3);
+        border: 1px solid rgba(255,255,255,0.05); border-radius:10px; background:#0a0a14;
     }
     .stTabs [data-baseweb="tab-list"] {
-        gap:0.2rem; background:rgba(13,13,26,0.6); padding:0.25rem;
-        border-radius:10px; border:1px solid rgba(99,102,241,0.08);
+        gap:0.2rem; background:#0a0a14; padding:0.25rem;
+        border-radius:10px; border:1px solid rgba(255,255,255,0.05);
     }
     .stTabs [data-baseweb="tab"] { border-radius:8px; padding:0.4rem 1rem; font-weight:500; font-size:0.8rem; }
 

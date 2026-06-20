@@ -17,7 +17,7 @@ import pandas as pd
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
-_DEFAULT_DB = Path(os.path.expanduser("~")) / ".tradingagents" / "trading_agent.db"
+_DEFAULT_DB = Path(__file__).resolve().parents[2] / ".tradingagents" / "trading_agent.db"
 _DB_URL = os.environ.get("TRADINGAGENTS_DATABASE_URL", f"sqlite:///{_DEFAULT_DB}")
 
 _engine = None

@@ -218,3 +218,6 @@ __marimo__/
 # Cache
 **/data_cache/
 graphify-out/
+
+# Local state & SQLite DB
+.tradingagents/

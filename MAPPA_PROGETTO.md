@@ -8,6 +8,7 @@ Benvenuto nella mappa dettagliata di **trading-agent**, un fondo di investimento
 
 ```text
 trading-agent/
+├── .tradingagents/                 # 💾 Cartella locale per database SQLite, logs e PID (creata all'avvio)
 ├── config.toml                     # File di configurazione globale (parametri quantitativi, LLM, broker)
 ├── docker-compose.yml              # Configurazione per containerizzare il database e la dashboard
 ├── Dockerfile                      # Ricetta Docker per il deployment del sistema
@@ -68,7 +69,7 @@ trading-agent/
     │   ├── db_reader.py            # Estrattore di dati dal DB specifico per la dashboard
     │   ├── metrics.py              # Calcolo delle metriche visive (NAV, profit/loss giornalieri, drawdown)
     │   ├── components/             # Componenti UI (sidebar, pannello metriche)
-    │   └── pages/                  # Pagine individuali (panoramica, transazioni, watchlist, analisi ticker)
+    │   └── views/                  # Viste e sotto-pagine (panoramica, transazioni, watchlist, analisi ticker)
     │
     ├── data/                       # 🗃️ Dati statici e seed
     │   └── sp500.csv               # File CSV usato per popolare l'universo iniziale di ticker
@@ -228,3 +229,54 @@ Se vuoi comprendere il codice approfondendo punti specifici:
 2. **Apri [tradingagents/orchestration/cycle.py](file:///Users/luca/Desktop/trading-agent/tradingagents/orchestration/cycle.py)**: Segui come sono strutturate le fasi del ciclo reale.
 3. **Esplora il Grafo in [tradingagents/brain/datapizza_graph.py](file:///Users/luca/Desktop/trading-agent/tradingagents/brain/datapizza_graph.py)**: Leggi `analyze_symbol()` per vedere come i 4 Desk collaborano per arrivare alla tesi di investimento.
 4. **Analizza la logica quantitativa in [tradingagents/domain/risk.py](file:///Users/luca/Desktop/trading-agent/tradingagents/domain/risk.py)**: Studia come le decisioni qualitative dell'LLM sono ricondotte a prezzi numerici precisi.
+
+---
+
+## 🔧 Modifiche e Ottimizzazioni Recenti
+
+Durante l'ultima fase di test e messa in produzione, sono state implementate diverse migliorie per garantire l'autocontenimento della repository, la stabilità e la leggibilità:
+
+1. **Autocontenimento delle Risorse (`.tradingagents/`)**: 
+   Tutta la persistenza locale (il database SQLite `trading_agent.db`, i log `agent.log`, i PID dei processi e le cache) è stata spostata nella cartella `.tradingagents/` posizionata nella root del progetto. In questo modo il software non genera alcun file o cartella al di fuori della repository. La cartella è stata inserita nel file [.gitignore](file:///Users/luca/Desktop/trading-agent/.gitignore).
+2. **Dashboard Streamlit Riorganizzata (`dashboard/views`)**: 
+   Per evitare che Streamlit caricasse automaticamente viste vuote nella sidebar nativa, le pagine individuali sono state spostate da `pages/` a `views/`. La navigazione è ora interamente gestita dal menu orizzontale e funzionale presente in [dashboard/app.py](file:///Users/luca/Desktop/trading-agent/tradingagents/dashboard/app.py).
+3. **Restyling e Leggibilità Grafica**: 
+   È stato applicato un tema scuro moderno ad alto contrasto (configurato in [.streamlit/config.toml](file:///Users/luca/Desktop/trading-agent/.streamlit/config.toml)) con colori indaco/ardesia e testi chiari nitidi, rendendo la dashboard perfettamente leggibile su qualsiasi schermo.
+4. **Prevenzione Lock del Database SQLite**: 
+   Le lunghe transazioni SQL del ciclo `run_once` in [app.py](file:///Users/luca/Desktop/trading-agent/tradingagents/app.py) sono state spezzate e committate su base per-symbol. Questo evita il blocco in scrittura esclusivo di SQLite e risolve gli errori di timeout (database is locked) che impedivano alla dashboard di leggere i dati in tempo reale.
+5. **Esclusione NaN nell'Ingestione Prezzi**: 
+   Il modulo [price_ingest.py](file:///Users/luca/Desktop/trading-agent/tradingagents/ingestion/price_ingest.py) ora esclude esplicitamente i dati incompleti/NaN ritornati da Yahoo Finance per evitare fallimenti di vincoli sul DB.
+6. **Configurazione OpenRouter**: 
+   È stato corretto il base URL e l'inizializzazione del client OpenRouter in [datapizza_llm.py](file:///Users/luca/Desktop/trading-agent/tradingagents/brain/datapizza_llm.py) per supportare correttamente le chiamate ai modelli di terze parti con output strutturato.
+
+---
+
+## 🚀 Esecuzione in Locale (senza Docker)
+
+Il sistema è configurato per essere eseguito nativamente in ambiente locale usando `uv`.
+
+### 1. Avvio del Demone di Trading e Backtest (Background)
+Per lanciare il ciclo autonomo e il backtest notturno in background:
+```bash
+uv run python -m tradingagents.cli start
+```
+*I log di esecuzione verranno scritti in [.tradingagents/agent.log](file:///Users/luca/Desktop/trading-agent/.tradingagents/agent.log).*
+
+### 2. Monitoraggio dello Stato
+Per verificare se il sistema è attivo ed identificare i PID:
+```bash
+uv run python -c "import logging; logging.basicConfig(level=logging.INFO); import tradingagents.cli; tradingagents.cli.main(['status'])"
+```
+
+### 3. Avvio della Dashboard Streamlit
+Per lanciare l'interfaccia di monitoraggio su [http://127.0.0.1:8501](http://127.0.0.1:8501):
+```bash
+uv run streamlit run tradingagents/dashboard/app.py --server.port=8501 --server.address=127.0.0.1
+```
+
+### 4. Arresto del Demone
+Per arrestare tutti i processi in background in modo pulito:
+```bash
+uv run python -m tradingagents.cli stop
+```
+

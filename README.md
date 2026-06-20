@@ -4,7 +4,7 @@
 
 **An autonomous, multi-agent AI investment fund** — LLM reasoning on top of a deterministic risk & execution engine.
 
-*Design-first · DB-first · test-driven · built to a written architecture spec*
+_Design-first · DB-first · test-driven · built to a written architecture spec_
 
 ![status](https://img.shields.io/badge/status-alpha%20v0-orange)
 ![python](https://img.shields.io/badge/python-3.13-blue)
@@ -16,14 +16,14 @@
 
 ---
 
-A research project exploring how to run a **portfolio-managing AI fund** the way a real desk works: a team of specialist analyst agents that gather their own data, debate a thesis, and hand it to a deterministic risk gate and trade function. The LLMs do the *reasoning*; everything quantitative — position sizing, price levels, guardrails, execution, exits — is deterministic, tested Python.
+A research project exploring how to run a **portfolio-managing AI fund** the way a real desk works: a team of specialist analyst agents that gather their own data, debate a thesis, and hand it to a deterministic risk gate and trade function. The LLMs do the _reasoning_; everything quantitative — position sizing, price levels, guardrails, execution, exits — is deterministic, tested Python.
 
 > ⚠️ Educational / research project. **Paper trading only**, not financial advice. The codebase mirrors a separate design wiki (`architettura.canvas`): states, nodes and edges follow the spec, not an inherited framework.
 
 ## ✨ What this project demonstrates
 
 - **Multi-agent orchestration** with LangGraph — a real graph of agents (2 desks → Portfolio Manager → Risk Analyst) with a "when in doubt, ask" loop.
-- **Autonomous tool-calling** — each agent calls its own tools (the *Extractors set*), fetches real-time-first data and writes it through to the DB.
+- **Autonomous tool-calling** — each agent calls its own tools (the _Extractors set_), fetches real-time-first data and writes it through to the DB.
 - **Per-agent memory** — every agent keeps a structured context window tailored to its task, accumulating across the analysis.
 - **Deterministic risk core** — ATR-based entry/stop/target, risk-based sizing with portfolio heat, an institutional "Statute" (R:R, 10% cash reserve, VaR, sector caps), exit management and rating-based disinvestment.
 - **DB-first data layer** — time-series + documents in one engine (SQLite → PostgreSQL/TimescaleDB), double-dated to prevent look-ahead bias.
@@ -52,19 +52,19 @@ autonomous loop (periodical synthesis)
 
 ## 🧱 Architecture / code map
 
-| Package                            | Responsibility                                                                            |
-| ---------------------------------- | ----------------------------------------------------------------------------------------- |
-| `storage/`                       | DB-first persistence (market data · ticker card · research states · trades · charter) |
-| `domain/`                        | `ResearchState`, enums, risk engine (ATR levels, sizing, Statute guardrails)            |
-| `indicators/`                    | pure technical indicators (`compute_indicator`)                                         |
-| `ingestion/`                     | vendor → DB extractors (prices · news · fundamentals · macro · social), DB-first     |
-| `tools/` · `brain/tooling.py` | the Extractors set: tools agents call (real-time-first + write-through)                   |
-| `brain/`                         | the LangGraph: 2 desks → PM → Risk; per-agent context windows                           |
-| `execution/`                     | deterministic Trade, net-EV cost gate, exits, disinvestment, mantainer                    |
-| `broker/`                        | swappable adapter (PaperBroker · Alpaca) + commission models                             |
-| `orchestration/`                 | Trigger Engine + cycle runner + autonomous loop                                           |
-| `backtesting/`                   | deterministic threshold validator                                                         |
-| `app.py` · `cli.py`           | runnable entry point                                                                      |
+| Package                       | Responsibility                                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------------- |
+| `storage/`                    | DB-first persistence (market data · ticker card · research states · trades · charter) |
+| `domain/`                     | `ResearchState`, enums, risk engine (ATR levels, sizing, Statute guardrails)          |
+| `indicators/`                 | pure technical indicators (`compute_indicator`)                                       |
+| `ingestion/`                  | vendor → DB extractors (prices · news · fundamentals · macro · social), DB-first      |
+| `tools/` · `brain/tooling.py` | the Extractors set: tools agents call (real-time-first + write-through)               |
+| `brain/`                      | the LangGraph: 2 desks → PM → Risk; per-agent context windows                         |
+| `execution/`                  | deterministic Trade, net-EV cost gate, exits, disinvestment, mantainer                |
+| `broker/`                     | swappable adapter (PaperBroker · Alpaca) + commission models                          |
+| `orchestration/`              | Trigger Engine + cycle runner + autonomous loop                                       |
+| `backtesting/`                | deterministic threshold validator                                                     |
+| `app.py` · `cli.py`           | runnable entry point                                                                  |
 
 ### Core Abstractions (Dependency Map)
 

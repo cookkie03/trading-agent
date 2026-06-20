@@ -125,16 +125,24 @@ def run_once(
         if bootstrap and not symbols:
             bootstrap_universe(s, broker, watchlist_seed=watchlist_seed, sp500=sp500_source)
         ws = working_set(s, symbols)
-        if benchmark_symbols:  # dynamic benchmark, ingested like any series
+
+    if benchmark_symbols:  # dynamic benchmark, ingested like any series
+        with database.get_session() as s:
             ingest_benchmarks(s, benchmark_symbols, fetcher=fetcher, start=start, end=end)
-        if macro_fetcher is not None:  # macro is global, ingested once per run
+
+    if macro_fetcher is not None:  # macro is global, ingested once per run
+        with database.get_session() as s:
             for sid in DEFAULT_MACRO_SERIES:
                 ingest_macro(s, sid, fetcher=macro_fetcher)
-        ingest_and_screen(
-            s, ws, fetcher=fetcher, start=start, end=end,
-            news_fetcher=news_fetcher, fundamentals_fetcher=fundamentals_fetcher,
-            social_fetcher=social_fetcher,
-        )
+
+    # Ingest and screen each symbol in its own transaction
+    for symbol in ws:
+        with database.get_session() as s:
+            ingest_and_screen(
+                s, [symbol], fetcher=fetcher, start=start, end=end,
+                news_fetcher=news_fetcher, fundamentals_fetcher=fundamentals_fetcher,
+                social_fetcher=social_fetcher,
+            )
 
     with database.get_session() as s:
         return run_cycle(

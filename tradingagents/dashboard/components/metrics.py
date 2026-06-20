@@ -31,13 +31,7 @@ def kpi_card(label: str, value: str, delta: str | None = None, accent: str = "pu
     if delta:
         cls = "pos" if not delta.startswith("-") else "neg"
         delta_html = f'<div class="kpi-delta"><span class="{cls}">{delta}</span></div>'
-    return f"""
-    <div class="kpi-card accent-{accent}">
-        <div class="kpi-label">{label}</div>
-        <div class="kpi-value">{value}</div>
-        {delta_html}
-    </div>
-    """
+    return f'<div class="kpi-card accent-{accent}"><div class="kpi-label">{label}</div><div class="kpi-value">{value}</div>{delta_html}</div>'
 
 
 def render_kpi_grid(cards: list[dict]) -> None:
