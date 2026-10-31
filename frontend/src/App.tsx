@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type Portfolio = {
   available: boolean
@@ -45,36 +45,51 @@ export function App() {
   const [error, setError] = useState<string | null>(null)
   const [controlError, setControlError] = useState<string | null>(null)
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [stale, setStale] = useState(false)
+  const [refreshToken, setRefreshToken] = useState(0)
+  const hasSnapshot = useRef(false)
 
   useEffect(() => {
     let active = true
     const refresh = async () => {
-      try {
-        const [dashboardResponse, controlResponse] = await Promise.all([
-          fetch(`${apiBase}/api/dashboard`),
-          fetch(`${apiBase}/api/control-surface`),
-        ])
-        if (!dashboardResponse.ok) throw new Error(`Dashboard responded ${dashboardResponse.status}`)
-        const next = (await dashboardResponse.json()) as Snapshot
-        if (active) {
-          setSnapshot(next)
-          setError(null)
-          if (controlResponse.ok) {
-            setControlSurface((await controlResponse.json()) as ControlSurface)
-            setControlError(null)
-          } else {
-            setControlError(`Control surface responded ${controlResponse.status}`)
-          }
-          setUpdatedAt(new Date())
-        }
-      } catch (requestError) {
-        if (active) setError(requestError instanceof Error ? requestError.message : 'Backend unavailable')
+      if (active && !hasSnapshot.current) setLoading(true)
+      const [dashboardResult, controlResult] = await Promise.allSettled([
+        fetch(`${apiBase}/api/dashboard`),
+        fetch(`${apiBase}/api/control-surface`),
+      ])
+      if (!active) return
+
+      if (dashboardResult.status === 'fulfilled' && dashboardResult.value.ok) {
+        const nextSnapshot = (await dashboardResult.value.json()) as Snapshot
+        setSnapshot(nextSnapshot)
+        hasSnapshot.current = true
+        setError(null)
+        setStale(false)
+        setUpdatedAt(new Date())
+      } else {
+        const reason = dashboardResult.status === 'rejected'
+          ? dashboardResult.reason instanceof Error ? dashboardResult.reason.message : 'Backend unavailable'
+          : `Dashboard responded ${dashboardResult.value.status}`
+        setError(reason)
+        setStale(hasSnapshot.current)
       }
+
+      if (controlResult.status === 'fulfilled' && controlResult.value.ok) {
+        setControlSurface((await controlResult.value.json()) as ControlSurface)
+        setControlError(null)
+      } else {
+        const reason = controlResult.status === 'rejected'
+          ? controlResult.reason instanceof Error ? controlResult.reason.message : 'Control surface unavailable'
+          : `Control surface responded ${controlResult.value.status}`
+        setControlError(reason)
+      }
+      setLoading(false)
     }
     refresh()
     const timer = window.setInterval(refresh, 15_000)
     return () => { active = false; window.clearInterval(timer) }
-  }, [])
+  }, [refreshToken])
 
   const portfolio = snapshot?.portfolio
   return (
@@ -87,7 +102,9 @@ export function App() {
         <div><p className="kicker">Trading Agent · observability</p><h1>See what is true<br /><em>before you act.</em></h1><p className="lede">A quiet surface for portfolio state, source freshness, and the work still waiting to be connected.</p></div>
         <div className="signal"><span className="signal-line" /><span>paper system<br /><b>read only</b></span></div>
       </section>
-      {error && <div className="alert"><strong>Data source unavailable.</strong><span>{error}. The view stays honest and does not substitute demo values.</span></div>}
+      {loading && <div className="alert" role="status"><strong>Loading read models.</strong><span>Connecting to the local read-only backend.</span></div>}
+      {error && <div className="alert" role="alert"><strong>{stale ? 'Showing the last successful snapshot.' : 'Data source unavailable.'}</strong><span>{error}. The view stays honest and does not substitute demo values.</span><button type="button" onClick={() => setRefreshToken((value) => value + 1)}>Retry</button></div>}
+      {stale && !error && <div className="alert"><strong>Data may be stale.</strong><span>Last successful snapshot checked {updatedAt?.toLocaleTimeString() ?? 'earlier'}.</span></div>}
       <section className="section-grid">
         <div className="section-head"><span>Portfolio</span><StatusPill tone={portfolio?.available ? 'good' : 'quiet'}>{portfolio?.available ? 'connected' : 'not connected'}</StatusPill></div>
         <div className="metric-grid">

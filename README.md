@@ -10,6 +10,24 @@ Il commit locale `88ca413` ha rimosso l'implementazione precedente conservando l
 
 Il layer dati espone `MarketDataProvider` e `PriceBar`, indipendenti dal vendor. Sono disponibili due adapter sostituibili: `YahooFinanceProvider` diretto e `OpenBBProvider`. OpenBB è opzionale e viene installato con `uv sync --extra openbb`; l'adapter conserva il provider sottostante nella provenance (`openbb:yfinance`) e non espone tipi OpenBB al resto dell'applicazione. OpenBB resta quindi un percorso di raccolta dati, non il contratto del progetto.
 
+## Avvio Docker del backend read-only
+
+Il backend locale può essere eseguito con SQLite persistente in un volume Docker:
+
+```bash
+docker compose build
+docker compose up -d
+curl http://localhost:8000/api/health
+```
+
+Il container espone solo gli endpoint GET della dashboard, monta `/app/data` come volume e usa `TRADING_AGENT_DB=/app/data/trading-agent.db`. L'ingestion resta un comando esplicito separato; non viene eseguita automaticamente all'avvio.
+
+Per fermare il servizio:
+
+```bash
+docker compose down
+```
+
 ## Setup e verifiche locali
 
 Prerequisiti: Python 3.11+ e `uv`. Le dipendenze runtime e sviluppo sono bloccate in `uv.lock`; il range supportato è `alpaca-py>=0.44,<0.45`, con versione 0.44.0 nel lock.
