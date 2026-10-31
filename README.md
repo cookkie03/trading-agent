@@ -63,6 +63,25 @@ Prima di ogni lavoro consultare la [overview della wiki](../trading-agent-wiki/w
 
 Si procede per step: wiki → confronto sui contratti → test del comportamento → implementazione → verifica e aggiornamento documentazione. Si usano le skill pertinenti di Matt Pocock, in particolare `codebase-design`, `domain-modeling`, `tdd` e `code-review`.
 
+## Ingestion OHLCV guidata
+
+Lo smoke test salva barre storiche reali nel database SQLite e stampa, per ogni simbolo, quante barre sono state lette, inserite o riconosciute come duplicati. Il provider predefinito è Yahoo Finance; Alpaca usa credenziali locali e il feed `iex` predefinito.
+
+```bash
+uv run python scripts/ingest_market_data.py \
+  --provider yahoo \
+  --start 2026-10-01T00:00:00Z \
+  --end 2026-11-01T00:00:00Z
+
+ALPACA_API_KEY=... ALPACA_SECRET_KEY=... \
+uv run python scripts/ingest_market_data.py \
+  --provider alpaca \
+  --start 2026-10-01T00:00:00Z \
+  --end 2026-11-01T00:00:00Z
+```
+
+Il secondo avvio sullo stesso intervallo è intenzionalmente idempotente: la tabella `price_bars` deduplica su `(symbol, interval, timestamp, source)`. Il comando effettua accesso alla rete; i test automatici usano fake provider e non richiedono credenziali. Per ispezionare il risultato: `sqlite3 data/trading.sqlite 'select source, symbol, interval, timestamp from price_bars order by symbol, timestamp;'`.
+
 ## Integrazione Alpaca paper
 
 Copiare `.env.example` in `.env` e inserire localmente le credenziali paper, senza inviarle in chat. `.env` è escluso da Git. Eseguire esplicitamente il test di sola lettura:
