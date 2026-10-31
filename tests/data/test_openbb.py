@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from data.interface import MarketDataProvider
+from data.models import FundamentalMetrics
 from data.providers.openbb import OpenBBProvider
 
 
@@ -31,6 +32,37 @@ class FakeOpenBBEquityPrice:
 
 class FakeOpenBBClient:
     equity = type("Equity", (), {"price": FakeOpenBBEquityPrice()})()
+
+
+def test_openbb_fundamentals_are_normalized_without_exposing_openbb_types():
+    class FakeFundamentalResponse:
+        def to_df(self):
+            return [{"symbol": "AAPL", "currency": "USD", "pe_ratio": 39.5, "beta": None}]
+
+    class FakeFundamental:
+        def metrics(self, *, symbol, provider):
+            assert symbol == "AAPL"
+            assert provider == "yfinance"
+            return FakeFundamentalResponse()
+
+    class FakeOpenBBClientWithFundamentals(FakeOpenBBClient):
+        equity = type(
+            "Equity",
+            (),
+            {"fundamental": FakeFundamental()},
+        )()
+
+    provider = OpenBBProvider(
+        client=FakeOpenBBClientWithFundamentals(),
+        clock=lambda: datetime(2024, 1, 3, 12, tzinfo=UTC),
+    )
+
+    metrics = provider.get_fundamental_metrics(" aapl ")
+
+    assert isinstance(metrics, FundamentalMetrics)
+    assert metrics.symbol == "AAPL"
+    assert metrics.values == {"pe_ratio": Decimal("39.5"), "beta": None}
+    assert metrics.source == "openbb:yfinance"
 
 
 def test_openbb_history_is_normalized_without_exposing_openbb_types():

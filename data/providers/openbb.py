@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from typing import Any
 
-from ..models import PriceBar
+from ..models import FundamentalMetrics, PriceBar
 
 
 class OpenBBProvider:
@@ -24,6 +24,32 @@ class OpenBBProvider:
         self._client = client if client is not None else _load_openbb_client()
         self._provider = provider
         self._clock = clock
+
+    def get_fundamental_metrics(self, symbol: str) -> FundamentalMetrics:
+        symbol = symbol.strip().upper()
+        if not symbol:
+            raise ValueError("symbol must not be blank")
+
+        response = self._client.equity.fundamental.metrics(
+            symbol=symbol,
+            provider=self._provider,
+        )
+        rows = tuple(_rows(response))
+        if not rows:
+            raise ValueError(f"OpenBB returned no fundamentals for {symbol}")
+        values = {
+            key: None if value is None else Decimal(str(value))
+            for key, value in rows[0].items()
+            if key != "symbol" and (value is None or isinstance(value, (int, float)))
+        }
+        collected_at = self._clock()
+        _require_aware_utc(collected_at, "clock result")
+        return FundamentalMetrics(
+            symbol=symbol,
+            values=values,
+            source=f"openbb:{self._provider}",
+            collected_at=collected_at,
+        )
 
     def get_ohlcv_history(
         self,

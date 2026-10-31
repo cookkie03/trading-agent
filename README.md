@@ -8,7 +8,7 @@ Progetto Python per un sistema multi-agente di analisi e gestione di un portafog
 
 Il commit locale `88ca413` ha rimosso l'implementazione precedente conservando le skill di Matt Pocock e le istruzioni del progetto. Il codice storico è [consultabile nella cronologia](https://github.com/cookkie03/trading-agent/tree/20bf209).
 
-Il layer dati espone `MarketDataProvider` e `PriceBar`, indipendenti dal vendor. Sono disponibili due adapter sostituibili: `YahooFinanceProvider` diretto e `OpenBBProvider`. OpenBB è opzionale e viene installato con `uv sync --extra openbb`; l'adapter conserva il provider sottostante nella provenance (`openbb:yfinance`) e non espone tipi OpenBB al resto dell'applicazione. OpenBB resta quindi un percorso di raccolta dati, non il contratto del progetto.
+Il layer dati espone modelli indipendenti dal vendor per OHLCV (`PriceBar`) e fundamentals (`FundamentalMetrics`). `OpenBBProvider` usa OpenBB 4.6 con yfinance per storico e metriche fondamentali; conserva il provider sottostante nella provenance (`openbb:yfinance`) e non espone tipi OpenBB al resto dell'applicazione. Installazione: `uv sync --extra openbb`. OpenBB resta un percorso di raccolta dati, non il contratto del progetto.
 
 ## Setup e verifiche locali
 
@@ -22,7 +22,7 @@ uv run ruff format --check .
 uv run mypy
 ```
 
-Verifica del 2026-10-31: **25 test offline passati e 1 test di integrazione saltato**. La suite predefinita usa il vero SDK Alpaca con risposte HTTP simulate, senza chiavi né accesso a un conto. La verifica di tipizzazione è attualmente limitata al package `brokers`. Le prove di integrazione paper sono opt-in e richiedono credenziali; non è stata eseguita alcuna prova su un conto Alpaca in questa sessione.
+Verifica del 2026-10-31: **41 test passati e 1 test di integrazione saltato**; prova reale OpenBB 4.6 → yfinance riuscita su AAPL per OHLCV e fundamentals. La suite predefinita usa il vero SDK Alpaca con risposte HTTP simulate, senza chiavi né accesso a un conto. La verifica di tipizzazione è attualmente limitata al package `brokers`. Le prove di integrazione paper sono opt-in e richiedono credenziali.
 
 ## Prima lettura del conto paper
 

@@ -6,6 +6,16 @@ from decimal import Decimal
 
 
 @dataclass(frozen=True)
+class FundamentalMetrics:
+    """Metriche fondamentali normalizzate per un simbolo."""
+
+    symbol: str
+    values: dict[str, Decimal | None]
+    source: str
+    collected_at: datetime
+
+
+@dataclass(frozen=True)
 class PriceBar:
     """Barra OHLCV normalizzata, con timestamp e raccolta in UTC.
 
