@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Protocol
+
+from storage.sqlite import SQLiteDatabase
 
 
 @dataclass(frozen=True)
 class PortfolioReadModel:
     """Read model del portafoglio, senza operazioni di mutazione."""
+
     available: bool
     reason: str | None
     cash: str | None = None
@@ -21,6 +25,7 @@ class PortfolioReadModel:
 @dataclass(frozen=True)
 class DashboardSnapshot:
     """Snapshot coerente della dashboard a un singolo istante osservato."""
+
     observed_at: datetime
     source: str
     freshness: str
@@ -110,6 +115,62 @@ class EmptyDashboardReadModel:
 
     def snapshot(self) -> DashboardSnapshot:
         return DashboardSnapshot.empty()
+
+
+class SQLiteDashboardReadModel:
+    """Read-only dashboard adapter backed by persisted OHLCV bars."""
+
+    def __init__(self, database_path: str | Path, *, symbols: tuple[str, ...] = ()) -> None:
+        self._database_path = Path(database_path)
+        self._symbols = tuple(symbol.upper() for symbol in symbols)
+
+    def snapshot(self) -> DashboardSnapshot:
+        if not self._database_path.exists():
+            return DashboardSnapshot.empty()
+        with SQLiteDatabase(self._database_path) as database:
+            bars = self._latest_bars(database)
+        if not bars:
+            return DashboardSnapshot.empty()
+        latest = max(bars, key=lambda bar: bar.collected_at)
+        return DashboardSnapshot(
+            observed_at=latest.collected_at,
+            source=latest.source,
+            freshness=latest.collected_at.isoformat(),
+            portfolio=PortfolioReadModel(
+                available=False,
+                reason="Portfolio data not ingested",
+            ),
+            watchlist=[
+                {
+                    "symbol": bar.symbol,
+                    "interval": bar.interval,
+                    "timestamp": bar.timestamp.isoformat(),
+                    "close": str(bar.close),
+                    "volume": str(bar.volume),
+                    "source": bar.source,
+                    "collected_at": bar.collected_at.isoformat(),
+                }
+                for bar in bars
+            ],
+            modules={
+                "market_data": "available",
+                "decisions": "unavailable",
+                "triggers": "unavailable",
+                "benchmark": "post-mvp",
+                "system_run": "unavailable",
+            },
+        )
+
+    def _latest_bars(self, database: SQLiteDatabase):
+        symbols = self._symbols
+        if not symbols:
+            symbols = database.market_data.symbols()
+        latest = []
+        for symbol in symbols:
+            bar = database.market_data.latest(symbol)
+            if bar is not None:
+                latest.append(bar)
+        return tuple(latest)
 
 
 class EmptyControlSurfaceReadModel:

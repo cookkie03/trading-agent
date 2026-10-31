@@ -1,13 +1,18 @@
 from datetime import UTC, datetime
+from decimal import Decimal
 from urllib.request import Request, urlopen
 
+from data.ingestion import to_stored_price_bar
+from data.models import PriceBar
 from interface.dashboard import (
     ControlSurfaceSnapshot,
     DashboardSnapshot,
     EmptyControlSurfaceReadModel,
     EmptyDashboardReadModel,
+    SQLiteDashboardReadModel,
 )
 from interface.server import DashboardServer
+from storage.sqlite import SQLiteDatabase
 
 
 def test_empty_read_model_explains_unavailable_data() -> None:
@@ -42,6 +47,34 @@ def test_snapshot_serializes_stable_read_contract() -> None:
     assert payload["observed_at"] == "2026-10-31T12:00:00+00:00"
     assert payload["portfolio"]["positions"] == []
     assert payload["modules"]["benchmark"] == "post-mvp"
+
+
+def test_sqlite_read_model_exposes_latest_market_data(tmp_path) -> None:
+    timestamp = datetime(2026, 10, 30, tzinfo=UTC)
+    bar = PriceBar(
+        symbol="AAPL",
+        interval="1d",
+        timestamp=timestamp,
+        open=Decimal("100"),
+        high=Decimal("105"),
+        low=Decimal("99"),
+        close=Decimal("104"),
+        volume=Decimal("123"),
+        source="openbb:yfinance",
+        collected_at=datetime(2026, 10, 31, 16, tzinfo=UTC),
+        reference_date=timestamp,
+    )
+    path = tmp_path / "market.db"
+    with SQLiteDatabase(path) as database:
+        assert database.market_data.save(to_stored_price_bar(bar)) is True
+
+    snapshot = SQLiteDashboardReadModel(path).snapshot()
+
+    assert snapshot.portfolio.available is False
+    assert snapshot.source == "openbb:yfinance"
+    assert snapshot.watchlist[0]["symbol"] == "AAPL"
+    assert snapshot.watchlist[0]["close"] == "104"
+    assert snapshot.modules["market_data"] == "available"
 
 
 def test_http_server_only_exposes_read_endpoints() -> None:

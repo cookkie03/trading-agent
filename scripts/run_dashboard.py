@@ -1,13 +1,14 @@
-"""Run the local read-only dashboard backend with an honest empty read model."""
+"""Run the local read-only dashboard backend."""
 
-from interface import (
-    DashboardServer,
-    EmptyControlSurfaceReadModel,
-    EmptyDashboardReadModel,
-)
+import os
+from pathlib import Path
 
+from interface import DashboardServer, EmptyControlSurfaceReadModel, SQLiteDashboardReadModel
+
+
+database_path = Path(os.environ.get("TRADING_AGENT_DB", "data/trading-agent.db"))
 server = DashboardServer(
-    EmptyDashboardReadModel(),
+    SQLiteDashboardReadModel(database_path),
     control_surface=EmptyControlSurfaceReadModel(),
     port=8000,
 )
