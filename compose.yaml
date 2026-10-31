@@ -1,0 +1,19 @@
+services:
+  dashboard:
+    build:
+      context: .
+    ports:
+      - "8000:8000"
+    environment:
+      TRADING_AGENT_DB: /app/data/trading-agent.db
+      TRADING_AGENT_HOST: ""
+      TRADING_AGENT_PORT: "8000"
+    volumes:
+      - trading-agent-data:/app/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+
+volumes:
+  trading-agent-data:
