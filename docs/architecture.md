@@ -76,6 +76,15 @@ Esempi: aggiungere IBKR modifica `brokers` e la composizione, non gli agenti; ag
 
 ## Prima slice Broker: letture implementate
 
+## Dashboard read-only
+
+La dashboard locale vive in `openbb-ui/` come modulo sostituibile. Il backend
+serve una UI responsive e contratti HTTP di sola lettura (`/health` e
+`/api/dashboard`); non chiama vendor direttamente e non espone mutazioni.
+L'avvio documentato è `./openbb-ui/openbb-ui`, con controllo health idempotente.
+Database e OpenBB restano non collegati finché non viene implementato il
+relativo read model.
+
 1. Concordare i dati minimi di conto, posizione e ordine e il contratto di lettura: `get_account()`, `get_positions()`, `get_orders()`.
 2. Con TDD, test offline dello stesso contratto con fake e adapter Alpaca tramite client sostituibile; normalizzare importi, valuta, identificatori, stati ed errori senza far trapelare SDK.
 3. Eventuale prova esplicita su conto Alpaca paper per lettura, quando esistono credenziali. Nessun ordine necessario per questa slice.
