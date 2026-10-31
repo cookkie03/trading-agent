@@ -19,3 +19,6 @@ class PriceBar:
     volume: Decimal
     source: str
     collected_at: datetime
+    publication_date: datetime | None = None
+    reference_date: datetime | None = None
+    raw_payload: str = "{}"
