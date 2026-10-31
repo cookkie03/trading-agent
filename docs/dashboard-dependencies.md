@@ -9,7 +9,7 @@ La dashboard non crea una seconda persistenza. Consuma un `DashboardReadModel` t
 1. Esporre uno snapshot coerente con `observed_at`, `source` e `freshness`.
 2. Fornire portfolio snapshot, cash, equity, posizioni e ordini già deduplicati/provenienti dal read model persistente.
 3. Restituire watchlist, eventi/trigger e stato ultimo run quando esistono; non riempire campi mancanti con valori demo.
-4. Mantenere la scrittura, le migrazioni e la deduplicazione fuori da `src/trading_agent/interface/`.
+4. Mantenere la scrittura, le migrazioni e la deduplicazione fuori da `interface/`.
 5. Concordare endpoint/configurazione di avvio senza aggiungere dipendenze a `pyproject.toml` o `uv.lock` da questa chat.
 
 ## Contratto attuale verificato

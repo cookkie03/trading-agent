@@ -1,14 +1,14 @@
 # Modulo Broker
 
-Stato: implementazione di sola lettura, 2026-10-31. Codice in [`src/trading_agent/brokers/`](../src/trading_agent/brokers/). Il modulo legge il conto; non decide investimenti e non invia ordini.
+Stato: implementazione di sola lettura, 2026-10-31. Codice in [`brokers/`](../brokers/). Il modulo legge il conto; non decide investimenti e non invia ordini.
 
 ## Contratto e file
 
 | File | Responsabilità |
 |---|---|
-| [`interface.py`](../src/trading_agent/brokers/interface.py) | `Broker`, un `Protocol` con tre operazioni di lettura |
-| [`models.py`](../src/trading_agent/brokers/models.py) | Modelli immutabili del progetto e `BrokerError` |
-| [`alpaca.py`](../src/trading_agent/brokers/alpaca.py) | Mapping Alpaca, costruzione del client paper e traduzione degli errori |
+| [`interface.py`](../brokers/interface.py) | `Broker`, un `Protocol` con tre operazioni di lettura |
+| [`models.py`](../brokers/models.py) | Modelli immutabili del progetto e `BrokerError` |
+| [`alpaca.py`](../brokers/alpaca.py) | Mapping Alpaca, costruzione del client paper e traduzione degli errori |
 
 I chiamanti usano il contratto e i modelli del progetto; i tipi dell'SDK restano dentro l'adapter. `Broker` è un contratto strutturale: una futura implementazione o un fake può soddisfarlo senza ereditare da una classe base.
 
@@ -26,9 +26,9 @@ Non sono disponibili metodi per inviare, cancellare, sostituire ordini o chiuder
 Il percorso normale usa credenziali Alpaca paper e seleziona esplicitamente il relativo ambiente:
 
 ```python
-from trading_agent.brokers.alpaca import AlpacaBroker
-from trading_agent.brokers.interface import Broker
-from trading_agent.brokers.models import OrderQuery
+from brokers.alpaca import AlpacaBroker
+from brokers.interface import Broker
+from brokers.models import OrderQuery
 
 broker: Broker = AlpacaBroker.from_env()
 account = broker.get_account()

@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from trading_agent.data.interface import MarketDataProvider
-from trading_agent.data.providers.yahoo_finance import YahooFinanceProvider
+from data.interface import MarketDataProvider
+from data.providers.yahoo_finance import YahooFinanceProvider
 
 
 class FakeHistory:

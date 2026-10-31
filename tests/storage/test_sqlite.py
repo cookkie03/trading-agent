@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from trading_agent.storage import Observation, PriceBar, SQLiteDatabase
+from storage import Observation, PriceBar, SQLiteDatabase
 
 
 @pytest.fixture

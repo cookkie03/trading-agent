@@ -9,7 +9,7 @@ Non serve un server database né una credenziale. Il gateway crea il file e appl
 ```python
 from decimal import Decimal
 from datetime import datetime, timezone
-from trading_agent.storage import Observation, SQLiteDatabase
+from storage import Observation, SQLiteDatabase
 
 with SQLiteDatabase("data/trading.sqlite") as database:
     database.observations.save(

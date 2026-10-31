@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from trading_agent.brokers.models import Account, Order, OrderQuery, Position
+from brokers.models import Account, Order, OrderQuery, Position
 
 
 @dataclass(frozen=True)

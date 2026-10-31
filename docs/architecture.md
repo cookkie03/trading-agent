@@ -32,7 +32,8 @@ trading-agent/
 ├── pyproject.toml                 # quando inizierà lo scaffolding
 ├── config.toml                    # parametri del sistema
 ├── .env.example                   # nomi dei segreti, senza valori reali
-├── src/trading_agent/
+├── agents/ · analysis/ · brokers/ · data/
+├── execution/ · interface/ · storage/ · tools/ · workflows/
 │   ├── brokers/                   # conto, posizioni, ordini; broker intercambiabili
 │   │   ├── interface.py           # contratto Broker, indipendente da SDK
 │   │   ├── models.py              # dati ed errori normalizzati del broker

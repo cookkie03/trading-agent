@@ -3,10 +3,10 @@ from decimal import Decimal
 import pytest
 import responses
 
+from brokers.alpaca import AlpacaBroker
+from brokers.interface import Broker
+from brokers.models import Account
 from tests.fakes.broker import EmptyBroker
-from trading_agent.brokers.alpaca import AlpacaBroker
-from trading_agent.brokers.interface import Broker
-from trading_agent.brokers.models import Account
 
 
 @pytest.mark.parametrize("implementation", ["fake", "alpaca"])

@@ -29,8 +29,8 @@ Verifica del 2026-10-31: **25 test offline passati e 1 test di integrazione salt
 Impostare `ALPACA_API_KEY` e `ALPACA_SECRET_KEY` nell'ambiente con credenziali paper. `from_env()` legge queste variabili; il codice non carica automaticamente un file `.env`.
 
 ```python
-from trading_agent.brokers.alpaca import AlpacaBroker
-from trading_agent.brokers.interface import Broker
+from brokers.alpaca import AlpacaBroker
+from brokers.interface import Broker
 
 broker: Broker = AlpacaBroker.from_env()
 account = broker.get_account()
@@ -46,7 +46,7 @@ La wiki definisce un **monolite modulare**, con broker e fonti dati sostituibili
 
 Il primo adapter dati è `YahooFinanceProvider`: legge OHLCV storico tramite yfinance e lo normalizza in `PriceBar`. Gli agenti non chiamano Yahoo Finance direttamente; per capacità e limiti vedere [la ricerca Yahoo Finance](docs/research/yahoo-finance.md).
 
-L'MVP è **paper trading su azioni USA in USD**. La lettura del conto conserva eventuali posizioni e ordini di altri asset già presenti, così da non nascondere esposizioni. Questo non autorizza operazioni fuori ambito. La struttura `src/trading_agent/` è presente; il primo modulo funzionale è `brokers`, mentre gli altri package mantengono il ruolo di scaffolding.
+L'MVP è **paper trading su azioni USA in USD**. La lettura del conto conserva eventuali posizioni e ordini di altri asset già presenti, così da non nascondere esposizioni. Questo non autorizza operazioni fuori ambito. I package applicativi (`agents/`, `analysis/`, `brokers/`, `data/`, `execution/`, `interface/`, `storage/`, `tools/`, `workflows/`) vivono nella root del repository; non esiste più una gerarchia `src/trading_agent/`. Il primo modulo funzionale è `brokers`, mentre gli altri package mantengono il ruolo di scaffolding.
 
 ## Documentazione e sviluppo
 

@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from trading_agent.data.interface import MarketDataProvider
-from trading_agent.data.providers.openbb import OpenBBProvider
+from data.interface import MarketDataProvider
+from data.providers.openbb import OpenBBProvider
 
 
 class FakeOpenBBResponse:

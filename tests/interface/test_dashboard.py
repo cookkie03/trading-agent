@@ -1,13 +1,13 @@
 from datetime import UTC, datetime
 from urllib.request import Request, urlopen
 
-from trading_agent.interface.dashboard import (
+from interface.dashboard import (
     ControlSurfaceSnapshot,
     DashboardSnapshot,
     EmptyControlSurfaceReadModel,
     EmptyDashboardReadModel,
 )
-from trading_agent.interface.server import DashboardServer
+from interface.server import DashboardServer
 
 
 def test_empty_read_model_explains_unavailable_data() -> None:

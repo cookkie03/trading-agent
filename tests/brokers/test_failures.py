@@ -4,8 +4,8 @@ import pytest
 import responses
 from requests.exceptions import Timeout
 
-from trading_agent.brokers.alpaca import AlpacaBroker
-from trading_agent.brokers.models import BrokerError, OrderQuery
+from brokers.alpaca import AlpacaBroker
+from brokers.models import BrokerError, OrderQuery
 
 URL = "https://paper-api.alpaca.markets/v2/positions"
 

@@ -14,8 +14,8 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["src"]
-include = ["trading_agent*"]
+where = ["."]
+include = ["agents*", "analysis*", "brokers*", "data*", "execution*", "interface*", "storage*", "tools*", "workflows*"]
 
 [project.optional-dependencies]
 openbb = ["openbb>=4,<5"]
@@ -38,4 +38,4 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-files = ["src/trading_agent/brokers"]
+files = ["brokers"]

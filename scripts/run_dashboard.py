@@ -1,6 +1,6 @@
 """Run the local read-only dashboard backend with an honest empty read model."""
 
-from trading_agent.interface import (
+from interface import (
     DashboardServer,
     EmptyControlSurfaceReadModel,
     EmptyDashboardReadModel,

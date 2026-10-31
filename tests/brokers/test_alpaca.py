@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import responses
 
-from trading_agent.brokers.alpaca import AlpacaBroker
+from brokers.alpaca import AlpacaBroker
 
 PAPER_URL = "https://paper-api.alpaca.markets"
 
@@ -132,7 +132,7 @@ def order_payload(**changes):
 def test_orders_preserve_partial_fills_and_nested_protection_orders():
     from datetime import UTC, datetime
 
-    from trading_agent.brokers.models import OrderQuery
+    from brokers.models import OrderQuery
 
     stop = order_payload(
         id="00000000-0000-0000-0000-000000000011",

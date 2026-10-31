@@ -2,7 +2,7 @@ import os
 
 import responses
 
-from trading_agent.brokers.alpaca import AlpacaBroker
+from brokers.alpaca import AlpacaBroker
 
 
 @responses.activate

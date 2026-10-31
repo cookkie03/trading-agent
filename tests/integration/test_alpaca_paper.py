@@ -4,8 +4,8 @@ from decimal import Decimal
 
 import pytest
 
-from trading_agent.brokers.alpaca import AlpacaBroker
-from trading_agent.brokers.models import OrderQuery
+from brokers.alpaca import AlpacaBroker
+from brokers.models import OrderQuery
 
 
 @pytest.mark.integration
