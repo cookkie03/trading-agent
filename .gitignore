@@ -15,3 +15,6 @@ dist/
 # MemPalace per-project files (issue #185)
 mempalace.yaml
 entities.json
+
+# Claude Code local transcripts
+docs/claude-chats/
