@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT/.."
+
+export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
+export OPENBB_UI_HOST="${OPENBB_UI_HOST:-localhost}"
+export OPENBB_UI_PORT="${OPENBB_UI_PORT:-8765}"
+
+if curl --silent --fail --max-time 1 "http://127.0.0.1:$OPENBB_UI_PORT/health" >/dev/null; then
+  printf 'OpenBB UI is already running at http://%s:%s\n' "$OPENBB_UI_HOST" "$OPENBB_UI_PORT"
+  exit 0
+fi
+
+exec "$ROOT/../.venv/bin/python" -m openbb_ui.backend.server
