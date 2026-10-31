@@ -57,7 +57,8 @@ class AlpacaBroker:
             paper=True,
             url_override=_sdk_base_url(trading_url),
         )
-        # alpaca-py 0.44 non espone un timeout: il coupling privato resta qui.
+        # alpaca-py 0.44 non espone un timeout pubblico: il coupling privato
+        # resta confinato all'adapter invece di contaminare il contratto Broker.
         client._session.mount("https://", _ReadTimeoutAdapter())
         return cls(client)
 
@@ -106,7 +107,11 @@ class AlpacaBroker:
             )
 
     def get_orders(self, query: OrderQuery | None = None) -> tuple[Order, ...]:
-        """Finestra limitata, ordinata per invio decrescente; gambe sempre annidate."""
+        """Restituisce una finestra limitata, ordinata per invio decrescente.
+
+        Le gambe restano annidate per non perdere la semantica degli ordini
+        complessi; il metodo non promette uno storico completo.
+        """
         query = query or OrderQuery()
         request = GetOrdersRequest(
             status=QueryOrderStatus(query.status),

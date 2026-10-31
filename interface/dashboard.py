@@ -9,6 +9,7 @@ from typing import Protocol
 
 @dataclass(frozen=True)
 class PortfolioReadModel:
+    """Read model del portafoglio, senza operazioni di mutazione."""
     available: bool
     reason: str | None
     cash: str | None = None
@@ -19,6 +20,7 @@ class PortfolioReadModel:
 
 @dataclass(frozen=True)
 class DashboardSnapshot:
+    """Snapshot coerente della dashboard a un singolo istante osservato."""
     observed_at: datetime
     source: str
     freshness: str
@@ -29,6 +31,7 @@ class DashboardSnapshot:
 
     @classmethod
     def empty(cls, *, observed_at: datetime | None = None) -> DashboardSnapshot:
+        """Crea uno stato esplicito di indisponibilità, non dati simulati."""
         return cls(
             observed_at=observed_at or datetime.now(UTC),
             source="not connected",
@@ -46,6 +49,7 @@ class DashboardSnapshot:
         )
 
     def to_dict(self) -> dict[str, object]:
+        """Serializza lo snapshot mantenendo il timestamp in formato ISO-8601."""
         payload = asdict(self)
         payload["observed_at"] = self.observed_at.isoformat()
         return payload
@@ -61,6 +65,8 @@ class ModuleStatus:
 
 @dataclass(frozen=True)
 class ControlSurfaceSnapshot:
+    """Snapshot del control plane; osserva lo stato ma non esegue comandi."""
+
     observed_at: datetime
     source: str
     freshness: str
@@ -71,6 +77,7 @@ class ControlSurfaceSnapshot:
 
     @classmethod
     def empty(cls, *, observed_at: datetime | None = None) -> ControlSurfaceSnapshot:
+        """Crea uno stato esplicito di indisponibilità del control plane."""
         return cls(
             observed_at=observed_at or datetime.now(UTC),
             source="not connected",
@@ -80,6 +87,7 @@ class ControlSurfaceSnapshot:
         )
 
     def to_dict(self) -> dict[str, object]:
+        """Serializza lo snapshot mantenendo il timestamp in formato ISO-8601."""
         payload = asdict(self)
         payload["observed_at"] = self.observed_at.isoformat()
         return payload
@@ -87,25 +95,25 @@ class ControlSurfaceSnapshot:
 
 class DashboardReadModel(Protocol):
     def snapshot(self) -> DashboardSnapshot:
-        """Return one consistent read at a point in time; never mutate state."""
+        """Restituisce una lettura coerente; non modifica lo stato."""
         ...
 
 
 class ControlSurfaceReadModel(Protocol):
     def snapshot(self) -> ControlSurfaceSnapshot:
-        """Return control-plane observation only; never mutate state."""
+        """Restituisce solo lo stato del control plane; non esegue comandi."""
         ...
 
 
 class EmptyDashboardReadModel:
-    """Safe adapter used until the database read model is available."""
+    """Adapter sicuro finché il read model del database non è disponibile."""
 
     def snapshot(self) -> DashboardSnapshot:
         return DashboardSnapshot.empty()
 
 
 class EmptyControlSurfaceReadModel:
-    """Safe adapter until runtime and configuration read models are connected."""
+    """Adapter sicuro finché runtime e configurazione non sono collegati."""
 
     def snapshot(self) -> ControlSurfaceSnapshot:
         return ControlSurfaceSnapshot.empty()

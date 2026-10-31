@@ -7,7 +7,13 @@ from decimal import Decimal
 
 @dataclass(frozen=True)
 class PriceBar:
-    """Una barra OHLCV normalizzata, con timestamp in UTC."""
+    """Barra OHLCV normalizzata, con timestamp e raccolta in UTC.
+
+    I valori numerici restano ``Decimal`` per evitare che la conversione a
+    ``float`` introduca perdita di precisione prima dei calcoli finanziari.
+    ``source`` e ``raw_payload`` conservano la provenienza necessaria alla
+    verifica e alla deduplicazione delle osservazioni.
+    """
 
     symbol: str
     interval: str

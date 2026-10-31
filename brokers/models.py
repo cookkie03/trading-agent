@@ -8,7 +8,11 @@ from typing import Literal
 
 @dataclass(frozen=True)
 class Account:
-    """Cash è liquidità; buying_power può includere margine e non è cash."""
+    """Snapshot del conto normalizzato dal broker.
+
+    ``cash`` è liquidità; ``buying_power`` può includere margine e quindi non
+    deve essere usato come sinonimo di cash nei controlli finanziari.
+    """
 
     id: str
     status: str
@@ -34,7 +38,11 @@ class Position:
 
 @dataclass(frozen=True)
 class OrderQuery:
-    """Una finestra limitata, non uno storico completo. Estremi temporali esclusivi."""
+    """Definisce una finestra limitata di ordini, non lo storico completo.
+
+    ``after`` e ``until`` sono estremi temporali esclusivi; il limite protegge
+    il contratto da richieste involontariamente illimitate.
+    """
 
     status: Literal["open", "closed", "all"] = "open"
     symbols: tuple[str, ...] = ()

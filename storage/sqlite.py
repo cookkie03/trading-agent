@@ -78,7 +78,11 @@ def _decode_datetime(value: str) -> datetime:
 
 @dataclass(frozen=True)
 class Observation:
-    """One vendor observation, retaining raw data and both temporal meanings."""
+    """Osservazione vendor con payload raw e due significati temporali.
+
+    ``observed_at`` indica quando il sistema ha visto il dato; publication e
+    reference date descrivono invece il tempo assegnato dal dominio.
+    """
 
     source: str
     external_id: str
@@ -117,7 +121,7 @@ class Observation:
 
 @dataclass(frozen=True)
 class PriceBar:
-    """Normalized OHLCV bar independent from the data provider."""
+    """Barra OHLCV normalizzata e indipendente dal provider."""
 
     symbol: str
     interval: str
@@ -158,6 +162,8 @@ class PriceBar:
 
 
 class ObservationRepository:
+    """Persistenza idempotente delle osservazioni vendor."""
+
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
 
@@ -221,6 +227,8 @@ class ObservationRepository:
 
 
 class MarketDataRepository:
+    """Persistenza idempotente delle barre con chiave di provenienza."""
+
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
 
@@ -295,7 +303,11 @@ class MarketDataRepository:
 
 
 class SQLiteDatabase:
-    """Small database gateway; callers use repositories, not SQL."""
+    """Gateway SQLite: i chiamanti usano repository, non SQL diretto.
+
+    Le migrazioni sono applicate all'apertura e la transazione resta il punto
+    esplicito per raggruppare scritture atomiche.
+    """
 
     def __init__(self, path: str | Path) -> None:
         self._connection = sqlite3.connect(str(path), isolation_level=None)

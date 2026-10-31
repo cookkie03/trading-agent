@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>OpenBB UI</title>
+  <style>
+    :root{font:15px system-ui;color:#e9eefb;background:#0b1020}
+    body{margin:0}
+    .app{max-width:1200px;margin:auto;padding:24px}
+    .top{display:flex;justify-content:space-between;gap:16px;align-items:center}
+    .muted{color:#9ca9c7}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:24px 0}
+    .card{border:1px solid #2a3859;background:#131d34;border-radius:12px;padding:18px}
+    .status{color:#f2c868}
+    .table{width:100%;border-collapse:collapse}
+    .table td,.table th{text-align:left;padding:10px;border-bottom:1px solid #293657}
+    .error{color:#ff8494}
+    @media(max-width:700px){.app{padding:16px}.top{align-items:flex-start;flex-direction:column}.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <div><div class="muted">OPENBB UI / READ-ONLY</div><h1>Workspace overview</h1></div>
+      <button id="refresh" type="button">Refresh</button>
+    </header>
+    <section class="grid">
+      <article class="card"><div class="muted">Data source</div><strong id="source">Loading...</strong></article>
+      <article class="card"><div class="muted">Freshness</div><strong id="freshness">Loading...</strong></article>
+      <article class="card"><div class="muted">Portfolio</div><strong id="portfolio">Loading...</strong></article>
+    </section>
+    <section class="card">
+      <h2>Observations</h2>
+      <div id="state" class="status">Loading read model...</div>
+      <table class="table">
+        <thead><tr><th>Symbol</th><th>Metric</th><th>Value</th><th>Observed</th><th>Source</th></tr></thead>
+        <tbody id="observations"></tbody>
+      </table>
+    </section>
+  </main>
+  <script>
+    const sourceElement = document.getElementById("source");
+    const freshnessElement = document.getElementById("freshness");
+    const portfolioElement = document.getElementById("portfolio");
+    const stateElement = document.getElementById("state");
+    const observationsElement = document.getElementById("observations");
+
+    async function loadDashboard() {
+      stateElement.className = "status";
+      stateElement.textContent = "Loading read model...";
+      try {
+        const response = await fetch("/api/dashboard", {
+          cache: "no-store",
+          signal: AbortSignal.timeout(5000)
+        });
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        const dashboard = await response.json();
+        sourceElement.textContent = dashboard.source;
+        freshnessElement.textContent = dashboard.freshness;
+        portfolioElement.textContent = dashboard.portfolio.available ? "Available" : "Not available";
+        stateElement.textContent =
+          dashboard.observations.length + " observation(s) · " +
+          (dashboard.modules.openbb_api || "unknown");
+        observationsElement.replaceChildren();
+        if (dashboard.observations.length === 0) {
+          const row = observationsElement.insertRow();
+          const cell = row.insertCell();
+          cell.colSpan = 5;
+          cell.className = "muted";
+          cell.textContent = "No observations available.";
+        } else {
+          for (const observation of dashboard.observations) {
+            const row = observationsElement.insertRow();
+            for (const value of [
+              observation.symbol,
+              observation.metric,
+              observation.value,
+              observation.observed_at,
+              observation.source
+            ]) {
+              row.insertCell().textContent = value;
+            }
+          }
+        }
+      } catch (error) {
+        stateElement.className = "error";
+        stateElement.textContent = "Dashboard unavailable: " + error.message;
+      }
+    }
+
+    document.getElementById("refresh").addEventListener("click", loadDashboard);
+    loadDashboard();
+    setInterval(loadDashboard, 15000);
+  </script>
+</body>
+</html>
