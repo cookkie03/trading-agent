@@ -17,6 +17,9 @@ dependencies = [
 where = ["src"]
 include = ["trading_agent*"]
 
+[project.optional-dependencies]
+openbb = ["openbb>=4,<5"]
+
 [dependency-groups]
 dev = ["pytest>=8,<10", "ruff>=0.12,<1", "mypy>=1.15,<2", "responses>=0.25,<1"]
 

@@ -12,8 +12,6 @@ from pathlib import Path
 from types import TracebackType
 from typing import Self
 
-from trading_agent.data.models import PriceBar
-
 _SCHEMA_MIGRATIONS: tuple[tuple[str, str], ...] = (
     (
         "001_create_observations",
@@ -117,6 +115,48 @@ class Observation:
         )
 
 
+@dataclass(frozen=True)
+class PriceBar:
+    """Normalized OHLCV bar independent from the data provider."""
+
+    symbol: str
+    interval: str
+    timestamp: datetime
+    open: Decimal
+    high: Decimal
+    low: Decimal
+    close: Decimal
+    volume: Decimal
+    source: str
+    collected_at: datetime
+    publication_date: datetime
+    reference_date: datetime
+    raw_payload: str = "{}"
+
+    def __post_init__(self) -> None:
+        for name in ("symbol", "interval", "source"):
+            if not getattr(self, name).strip():
+                raise ValueError(f"{name} must not be blank")
+        for value in (
+            self.open,
+            self.high,
+            self.low,
+            self.close,
+            self.volume,
+        ):
+            if not isinstance(value, Decimal):
+                raise TypeError("OHLCV values must be Decimal")
+        for timestamp in (
+            self.timestamp,
+            self.collected_at,
+            self.publication_date,
+            self.reference_date,
+        ):
+            _utc(timestamp)
+        if self.high < self.low:
+            raise ValueError("high must be greater than or equal to low")
+
+
 class ObservationRepository:
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._connection = connection
@@ -203,8 +243,8 @@ class MarketDataRepository:
                 str(bar.volume),
                 bar.source,
                 _encode_datetime(bar.collected_at),
-                _encode_datetime(bar.publication_date or bar.timestamp),
-                _encode_datetime(bar.reference_date or bar.timestamp),
+                _encode_datetime(bar.publication_date),
+                _encode_datetime(bar.reference_date),
                 bar.raw_payload,
             ),
         )

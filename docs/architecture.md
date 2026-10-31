@@ -64,7 +64,7 @@ trading-agent/
 
 - I modelli Alpaca non escono da `brokers/alpaca.py`. Chiamanti e test usano dati del progetto.
 - `brokers` parla con il broker; `execution` decide come eseguire un intento già validato, conserva l'intent e riconcilia gli esiti. Il broker non sceglie investimenti.
-- `data` acquisisce e normalizza, con storico DB-first e live decision-critical con write-through secondo la wiki. `data/providers` confina gli SDK esterni: oggi `YahooFinanceProvider` normalizza OHLCV storico in `PriceBar`; gli agenti non chiamano vendor direttamente. `storage` persiste; non chiama vendor o LLM.
+- `data` acquisisce e normalizza, con storico DB-first e live decision-critical con write-through secondo la wiki. `data/providers` confina gli SDK esterni: `YahooFinanceProvider` è l'adapter diretto e `OpenBBProvider` è l'adapter OpenBB; entrambi implementano `MarketDataProvider` e normalizzano OHLCV in `PriceBar`. OpenBB può delegare a un provider sottostante, ma la selezione e la provenance restano nostre. Gli agenti non chiamano vendor direttamente. `storage` persiste; non chiama vendor o LLM.
 - `analysis` contiene la complessità di un'analisi; `tools` presenta agli agenti un'interfaccia piccola. Un tool complesso può usare un intero package analitico.
 - `agents` definisce comportamenti riutilizzabili; `workflows` decide chi chiama chi, sequenza, parallelismo e state isolato per ticker/run.
 - `bootstrap.py` è il punto di composizione: sceglie adapter e strumenti e li passa ai chiamanti. I moduli ricevono dipendenze invece di creare client esterni nascosti.

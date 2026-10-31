@@ -8,6 +8,8 @@ Progetto Python per un sistema multi-agente di analisi e gestione di un portafog
 
 Il commit locale `88ca413` ha rimosso l'implementazione precedente conservando le skill di Matt Pocock e le istruzioni del progetto. Il codice storico è [consultabile nella cronologia](https://github.com/cookkie03/trading-agent/tree/20bf209).
 
+Il layer dati espone `MarketDataProvider` e `PriceBar`, indipendenti dal vendor. Sono disponibili due adapter sostituibili: `YahooFinanceProvider` diretto e `OpenBBProvider`. OpenBB è opzionale e viene installato con `uv sync --extra openbb`; l'adapter conserva il provider sottostante nella provenance (`openbb:yfinance`) e non espone tipi OpenBB al resto dell'applicazione. OpenBB resta quindi un percorso di raccolta dati, non il contratto del progetto.
+
 ## Setup e verifiche locali
 
 Prerequisiti: Python 3.11+ e `uv`. Le dipendenze runtime e sviluppo sono bloccate in `uv.lock`; il range supportato è `alpaca-py>=0.44,<0.45`, con versione 0.44.0 nel lock.
