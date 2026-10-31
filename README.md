@@ -8,6 +8,8 @@ Progetto Python per un sistema multi-agente di analisi e gestione di un portafog
 
 Il commit locale `88ca413` ha rimosso l'implementazione precedente conservando le skill di Matt Pocock e le istruzioni del progetto. Il codice storico è [consultabile nella cronologia](https://github.com/cookkie03/trading-agent/tree/20bf209).
 
+Il layer dati espone `MarketDataProvider` e `PriceBar`, indipendenti dal vendor. Sono disponibili due adapter sostituibili: `YahooFinanceProvider` diretto e `OpenBBProvider`. OpenBB è opzionale e viene installato con `uv sync --extra openbb`; l'adapter conserva il provider sottostante nella provenance (`openbb:yfinance`) e non espone tipi OpenBB al resto dell'applicazione. OpenBB resta quindi un percorso di raccolta dati, non il contratto del progetto.
+
 ## Setup e verifiche locali
 
 Prerequisiti: Python 3.11+ e `uv`. Le dipendenze runtime e sviluppo sono bloccate in `uv.lock`; il range supportato è `alpaca-py>=0.44,<0.45`, con versione 0.44.0 nel lock.
@@ -41,6 +43,8 @@ Le factory `paper()` e `from_env()` selezionano sempre Alpaca paper. Questo esem
 ## Architettura e ambito
 
 La wiki definisce un **monolite modulare**, con broker e fonti dati sostituibili, database come hub persistente e separazione tra calcoli, strumenti, agenti e orchestrazione. Python è il linguaggio scelto; LangGraph e LangSmith sono le scelte documentate per il futuro layer agentico e non dipendenze del modulo attuale.
+
+Il primo adapter dati è `YahooFinanceProvider`: legge OHLCV storico tramite yfinance e lo normalizza in `PriceBar`. Gli agenti non chiamano Yahoo Finance direttamente; per capacità e limiti vedere [la ricerca Yahoo Finance](docs/research/yahoo-finance.md).
 
 L'MVP è **paper trading su azioni USA in USD**. La lettura del conto conserva eventuali posizioni e ordini di altri asset già presenti, così da non nascondere esposizioni. Questo non autorizza operazioni fuori ambito. La struttura `src/trading_agent/` è presente; il primo modulo funzionale è `brokers`, mentre gli altri package mantengono il ruolo di scaffolding.
 

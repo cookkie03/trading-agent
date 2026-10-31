@@ -8,11 +8,17 @@ version = "0.1.0"
 description = "Modular paper-trading application"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["alpaca-py>=0.44,<0.45"]
+dependencies = [
+    "alpaca-py>=0.44,<0.45",
+    "yfinance>=0.2.63,<0.3",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["trading_agent*"]
+
+[project.optional-dependencies]
+openbb = ["openbb>=4,<5"]
 
 [dependency-groups]
 dev = ["pytest>=8,<10", "ruff>=0.12,<1", "mypy>=1.15,<2", "responses>=0.25,<1"]

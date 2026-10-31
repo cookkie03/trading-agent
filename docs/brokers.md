@@ -36,7 +36,7 @@ positions = broker.get_positions()
 aapl_orders = broker.get_orders(OrderQuery(status="all", symbols=("AAPL",), limit=50))
 ```
 
-`from_env()` richiede `ALPACA_API_KEY` e `ALPACA_SECRET_KEY`. Variabili assenti o vuote producono `ValueError` prima di chiamare la rete. Non carica `.env` automaticamente. `AlpacaBroker.paper(api_key, secret_key)` permette di passare le credenziali direttamente e usa sempre `paper=True`, senza fallback al live.
+`from_env()` richiede `ALPACA_API_KEY` e `ALPACA_SECRET_KEY`. Variabili assenti o vuote producono `ValueError` prima di chiamare la rete. Non carica `.env` automaticamente. `ALPACA_TRADING_URL` è opzionale e predefinita a `https://paper-api.alpaca.markets/v2`; viene normalizzata per l'SDK, che aggiunge il proprio prefisso `/v2`. `AlpacaBroker.paper(api_key, secret_key)` permette di passare le credenziali direttamente e usa sempre `paper=True`, senza fallback al live.
 
 `AlpacaBroker(client)` riceve un `TradingClient` già costruito: consente di sostituire il trasporto nei test. Chi usa direttamente il costruttore è responsabile della configurazione del client; il costruttore non verifica che sia paper. Tutti i metodi esposti rimangono di lettura. Il range supportato è `alpaca-py>=0.44,<0.45`, con 0.44.0 risolta in `uv.lock`.
 

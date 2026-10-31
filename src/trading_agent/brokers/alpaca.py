@@ -22,6 +22,12 @@ from requests.exceptions import JSONDecodeError, RequestException
 
 from .models import Account, BrokerError, ErrorKind, Order, OrderQuery, Position
 
+PAPER_TRADING_URL = "https://paper-api.alpaca.markets/v2"
+
+
+def _sdk_base_url(trading_url: str) -> str:
+    return trading_url.rstrip("/").removesuffix("/v2")
+
 
 class AlpacaBroker:
     """Riceve il client per poter sostituire il trasporto nei test.
@@ -34,11 +40,23 @@ class AlpacaBroker:
         self._client = client
 
     @classmethod
-    def paper(cls, api_key: str, secret_key: str) -> "AlpacaBroker":
+    def paper(
+        cls,
+        api_key: str,
+        secret_key: str,
+        trading_url: str = PAPER_TRADING_URL,
+    ) -> "AlpacaBroker":
         """Crea un client paper, senza fallback al live."""
         if not api_key.strip() or not secret_key.strip():
             raise ValueError("Both Alpaca paper credentials are required")
-        client = TradingClient(api_key, secret_key, paper=True)
+        if not trading_url.strip():
+            raise ValueError("Alpaca trading URL is required")
+        client = TradingClient(
+            api_key,
+            secret_key,
+            paper=True,
+            url_override=_sdk_base_url(trading_url),
+        )
         # alpaca-py 0.44 non espone un timeout: il coupling privato resta qui.
         client._session.mount("https://", _ReadTimeoutAdapter())
         return cls(client)
@@ -49,7 +67,12 @@ class AlpacaBroker:
         for name in ("ALPACA_API_KEY", "ALPACA_SECRET_KEY"):
             if not os.environ.get(name, "").strip():
                 raise ValueError(f"Missing paper credential: {name}")
-        return cls.paper(os.environ["ALPACA_API_KEY"], os.environ["ALPACA_SECRET_KEY"])
+        trading_url = os.environ.get("ALPACA_TRADING_URL", PAPER_TRADING_URL)
+        return cls.paper(
+            os.environ["ALPACA_API_KEY"],
+            os.environ["ALPACA_SECRET_KEY"],
+            trading_url,
+        )
 
     def get_account(self) -> Account:
         with _translate_errors():
