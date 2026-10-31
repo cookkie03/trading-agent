@@ -1,0 +1,16 @@
+.git
+.agents
+.claude
+.hermes
+.venv
+**/__pycache__
+**/*.pyc
+.env
+.env.*
+!.env.example
+build
+dist
+**/*.egg-info
+.pytest_cache
+.mypy_cache
+.ruff_cache

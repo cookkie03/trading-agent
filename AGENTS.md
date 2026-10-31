@@ -15,3 +15,9 @@ Il codice Python vive in questo repository; documentazione, decisioni e backlog 
 ## Skill di Matt Pocock
 
 Conserva le skill installate in `.agents/skills/` e i relativi collegamenti. Per il lavoro sul progetto usa le skill pertinenti di Matt Pocock quando disponibili: `codebase-design` per interfacce e moduli, `domain-modeling` per concetti e terminologia, `tdd` per implementazione e test, `code-review` per revisioni, `writing-for-agents` per istruzioni agli agenti. Leggi la skill prima di applicarla.
+
+## Consultazione e documentazione durante lo sviluppo
+
+Quando lavori con sub-agent, assegna a un consulente dedicato le domande sulla wiki: le sue risposte devono derivare esclusivamente dalla wiki locale e indicare pagine e passaggi pertinenti. Usa il suo contesto per il lavoro sul codice; mantieni distinta la ricerca esterna sulla documentazione dei provider. Nelle sessioni successive ricrea il consulente se quello precedente non è disponibile.
+
+A ogni modifica rilevante aggiorna insieme al codice i documenti interessati: README per avvio/stato, `docs/architecture.md` per struttura e dipendenze, ricerca tecnica per vincoli dei servizi, wiki per requisiti/decisioni/board/log/hot-cache. Distingui proposte, implementazioni e verifiche eseguite. Usa un sub-agent dedicato alla documentazione quando disponibile; le istruzioni di manutenzione sono in `docs/documentation.md`.
