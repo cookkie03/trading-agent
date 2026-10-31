@@ -1,7 +1,7 @@
 """Adapter OpenBB verso il contratto interno di dati di mercato."""
 
 from collections.abc import Callable, Iterable, Mapping
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from typing import Any
 
@@ -81,13 +81,21 @@ def _load_openbb_client() -> Any:
 def _rows(response: Any) -> Iterable[Mapping[str, Any]]:
     dataframe = response.to_df()
     if hasattr(dataframe, "to_dict"):
+        # OpenBB returns the historical date as the DataFrame index.
+        if hasattr(dataframe, "columns") and "date" not in dataframe.columns:
+            dataframe = dataframe.reset_index()
         return dataframe.to_dict("records")
     return dataframe
 
 
 def _as_utc(value: Any) -> datetime:
-    if not isinstance(value, datetime):
-        raise TypeError("OpenBB response dates must be datetime values")
+    if isinstance(value, date) and not isinstance(value, datetime):
+        value = datetime.combine(value, time.min)
+    elif not isinstance(value, datetime):
+        to_pydatetime = getattr(value, "to_pydatetime", None)
+        if to_pydatetime is None:
+            raise TypeError("OpenBB response dates must be datetime values")
+        value = to_pydatetime()
     if value.tzinfo is None or value.utcoffset() is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
