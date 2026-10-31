@@ -43,6 +43,19 @@ sqlite3 data/trading.sqlite 'select source, external_id, symbol, metric, value f
 - `PriceBar` è il record OHLCV normalizzato: `symbol`, `interval`, timestamp, valori `Decimal`, `source`, `collected_at`, doppia data e payload raw. `MarketDataRepository` salva in modo idempotente sulla chiave `(symbol, interval, timestamp, source)` e legge finestre `[start, end)` ordinate per timestamp.
 - La migrazione `002_create_price_bars` aggiunge la tabella e l’indice di lettura; l’adapter Yahoo resta nel package data e non viene duplicato nello storage.
 
+## Popolare il database con OpenBB
+
+Il runner sincrono salva barre OHLCV normalizzate nel database SQLite e può essere rieseguito senza duplicare righe:
+
+```bash
+uv run python scripts/ingest_market_data.py AAPL \
+  --start 2026-01-01T00:00:00+00:00 \
+  --end 2026-11-01T00:00:00+00:00 \
+  --database data/trading-agent.db
+```
+
+Il comando usa OpenBB con `yfinance` come provider predefinito. `source`, `collected_at`, `reference_date`, `publication_date` e `raw_payload` vengono conservati. La freshness non viene interpretata come dato live: per ora è rappresentata dal momento di raccolta.
+
 ## Confini e percorso PostgreSQL/TimescaleDB
 
 SQLite è adeguato al perimetro MVP: un singolo host e un writer coordinato, senza avviare un servizio separato. Non è una promessa per più writer concorrenti, ingestione ad alto volume o retention time-series di produzione. Se il workload supera queste soglie, il passo successivo è un adapter PostgreSQL con migrazioni SQL revisionate; TimescaleDB potrà aggiungere hypertable e policy time-series sul lato PostgreSQL. Non basta cambiare una URL e SQLite non implementa TimescaleDB.

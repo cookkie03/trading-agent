@@ -16,6 +16,6 @@ La UI usa React + TypeScript + Vite/npm e legge contratti HTTP read-only dal bac
 
 ## Contratto e avvio
 
-Il backend espone `GET /api/dashboard` e `GET /api/health` su loopback. L’adapter iniziale `EmptyDashboardReadModel` serve per verificare UI, loading, errore e stato vuoto senza credenziali. Il frontend usa `VITE_API_BASE_URL` per il backend e aggiorna via polling; npm non rende i dati finanziari real-time.
+Il backend espone `GET /api/dashboard` e `GET /api/health` su loopback. Il launcher `scripts/run_dashboard.py` legge il database indicato da `TRADING_AGENT_DB` (default `data/trading-agent.db`) e mantiene uno stato esplicito vuoto se il file non esiste. Il frontend usa `VITE_API_BASE_URL` per il backend e aggiorna via polling; npm non rende i dati finanziari real-time.
 
 Per i comandi esatti e la configurazione persistente vedere la sezione README che verrà integrata dalla chat principale; questa chat non modifica README.

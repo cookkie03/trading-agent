@@ -270,6 +270,23 @@ class MarketDataRepository:
         ).fetchone()
         return self._from_row(row) if row is not None else None
 
+    def latest(self, symbol: str, interval: str = "1d") -> PriceBar | None:
+        row = self._connection.execute(
+            """
+            SELECT * FROM price_bars
+            WHERE symbol = ? AND interval = ?
+            ORDER BY timestamp DESC LIMIT 1
+            """,
+            (symbol, interval),
+        ).fetchone()
+        return self._from_row(row) if row is not None else None
+
+    def symbols(self) -> tuple[str, ...]:
+        rows = self._connection.execute(
+            "SELECT DISTINCT symbol FROM price_bars ORDER BY symbol"
+        ).fetchall()
+        return tuple(row[0] for row in rows)
+
     def list_between(
         self, symbol: str, interval: str, start: datetime, end: datetime
     ) -> tuple[PriceBar, ...]:
