@@ -1,155 +1,76 @@
-<div align="center">
+# Trading Agent
 
-# 🤖 trading-agent
+Progetto Python per un sistema multi-agente di analisi e gestione di un portafoglio azionario. Gli agenti elaborano informazioni e proposte; calcoli, controlli di rischio ed esecuzione restano deterministici.
 
-**An autonomous, multi-agent AI investment fund** — LLM reasoning on top of a deterministic risk & execution engine.
+## Stato attuale
 
-*Design-first · DB-first · test-driven · built to a written architecture spec*
+**2026-10-31 — primo modulo Broker di sola lettura.** La struttura modulare è approvata; sono presenti il contratto `Broker`, i modelli indipendenti dal vendor e l'adapter `AlpacaBroker` per leggere conto, posizioni e ordini. Il contratto non espone operazioni di invio, modifica o cancellazione degli ordini. Non esiste ancora un runtime autonomo di trading.
 
-![status](https://img.shields.io/badge/status-alpha%20v0-orange)
-![python](https://img.shields.io/badge/python-3.13-blue)
-![tests](https://img.shields.io/badge/tests-216%20passing-brightgreen)
-![stack](https://img.shields.io/badge/LangGraph-OpenRouter%2FDeepSeek-purple)
-![license](https://img.shields.io/badge/license-Apache--2.0-lightgrey)
+Il commit locale `88ca413` ha rimosso l'implementazione precedente conservando le skill di Matt Pocock e le istruzioni del progetto. Il codice storico è [consultabile nella cronologia](https://github.com/cookkie03/trading-agent/tree/20bf209).
 
-</div>
+## Setup e verifiche locali
 
----
-
-A research project exploring how to run a **portfolio-managing AI fund** the way a real desk works: a team of specialist analyst agents that gather their own data, debate a thesis, and hand it to a deterministic risk gate and trade function. The LLMs do the *reasoning*; everything quantitative — position sizing, price levels, guardrails, execution, exits — is deterministic, tested Python.
-
-> ⚠️ Educational / research project. **Paper trading only**, not financial advice. The codebase mirrors a separate design wiki (`architettura.canvas`): states, nodes and edges follow the spec, not an inherited framework.
-
-## ✨ What this project demonstrates
-
-- **Multi-agent orchestration** with LangGraph — a real graph of agents (2 desks → Portfolio Manager → Risk Analyst) with a "when in doubt, ask" loop.
-- **Autonomous tool-calling** — each agent calls its own tools (the *Extractors set*), fetches real-time-first data and writes it through to the DB.
-- **Per-agent memory** — every agent keeps a structured context window tailored to its task, accumulating across the analysis.
-- **Deterministic risk core** — ATR-based entry/stop/target, risk-based sizing with portfolio heat, an institutional "Statute" (R:R, 10% cash reserve, VaR, sector caps), exit management and rating-based disinvestment.
-- **DB-first data layer** — time-series + documents in one engine (SQLite → PostgreSQL/TimescaleDB), double-dated to prevent look-ahead bias.
-- **Swappable broker adapter**, idempotent orders, crash reconciliation.
-- **A deterministic backtester** to validate the thresholds.
-- **216 offline tests** — no network, no keys: fake LLM + fake fetchers as the oracle that the code matches the design.
-
-## 🧠 How it works
-
-The only non-deterministic part is the **brain** (the LLM agents). They fill the investment thesis; the rest is tested Python.
-
-```
-autonomous loop (periodical synthesis)
-  └─ Trigger Engine        checkpoints · price alerts · screening
-       └─ priority queue
-            └─ BRAIN per ticker     ── warm start: extractors pre-run → first context
-                 ├─ Market · Sentiment        (Analyst Research)
-                 ├─ Technical · Fundamentals  (Analyst Technical)
-                 │     ↑ each agent calls its own tools (Extractors set) → DB
-                 ├─ Portfolio Manager   aggregates direction/conviction + ATR levels
-                 └─ Risk Analyst        bear case + Statute (R:R · cash · VaR · sector)
-                      └─ Investment State → deterministic Trade (equity / options on Strong)
-                           └─ broker (paper) → exits (TP/SL) · disinvestment
-                                └─ DecisionLog  (learning substrate)
-```
-
-## 🧱 Architecture / code map
-
-| Package                            | Responsibility                                                                            |
-| ---------------------------------- | ----------------------------------------------------------------------------------------- |
-| `storage/`                       | DB-first persistence (market data · ticker card · research states · trades · charter) |
-| `domain/`                        | `ResearchState`, enums, risk engine (ATR levels, sizing, Statute guardrails)            |
-| `indicators/`                    | pure technical indicators (`compute_indicator`)                                         |
-| `ingestion/`                     | vendor → DB extractors (prices · news · fundamentals · macro · social), DB-first     |
-| `tools/` · `brain/tooling.py` | the Extractors set: tools agents call (real-time-first + write-through)                   |
-| `brain/`                         | the LangGraph: 2 desks → PM → Risk; per-agent context windows                           |
-| `execution/`                     | deterministic Trade, net-EV cost gate, exits, disinvestment, mantainer                    |
-| `broker/`                        | swappable adapter (PaperBroker · Alpaca) + commission models                             |
-| `orchestration/`                 | Trigger Engine + cycle runner + autonomous loop                                           |
-| `backtesting/`                   | deterministic threshold validator                                                         |
-| `app.py` · `cli.py`           | runnable entry point                                                                      |
-
-## 🛠️ Tech stack
-
-Python 3.13 · LangGraph / LangChain · OpenRouter · SQLAlchemy 2 (SQLite / PostgreSQL + TimescaleDB) · Pydantic · pytest · `uv`.
-
-## 🚀 Quick start
-
-A single **uv-managed environment** (`.venv`) holds everything (runtime + dev
-tools); always use `uv`.
+Prerequisiti: Python 3.11+ e `uv`. Le dipendenze runtime e sviluppo sono bloccate in `uv.lock`; il range supportato è `alpaca-py>=0.44,<0.45`, con versione 0.44.0 nel lock.
 
 ```bash
-uv sync                                   # provisions .venv with all deps + dev
-
-# configure .env (see .env.example) — at minimum OPENROUTER_API_KEY
-# optional: FRED_API_KEY (macro), ALPACA_* or a running TWS/IB Gateway (broker)
-
-# run the whole system in the BACKGROUND (one command), then stop it
-uv run python -m tradingagents.cli start     # detached; prints a confirmation
-uv run python -m tradingagents.cli status
-uv run python -m tradingagents.cli stop
-
-# or run in the foreground:
-uv run python -m tradingagents.cli run            # autonomous: works the watchlist
-uv run python -m tradingagents.cli run AAPL MSFT  # explicit override
-uv run python -m tradingagents.cli run --loop 3600
+uv sync --locked
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy
 ```
 
-With no symbols the system is fully autonomous: it learns the broker's investable
-universe, seeds a dynamic watchlist (S&P 500 ∩ tradable), and decides what to
-analyse from its own state. Background logs + PID live in `~/.tradingagents/`.
+Verifica del 2026-10-31: **25 test offline passati e 1 test di integrazione saltato**. La suite predefinita usa il vero SDK Alpaca con risposte HTTP simulate, senza chiavi né accesso a un conto. La verifica di tipizzazione è attualmente limitata al package `brokers`. Le prove di integrazione paper sono opt-in e richiedono credenziali; non è stata eseguita alcuna prova su un conto Alpaca in questa sessione.
 
-Broker is chosen in `config.toml` (`[broker] provider = paper | alpaca | ibkr`);
-IBKR uses the TWS API via `ib_async` and needs a running TWS/IB Gateway.
+## Prima lettura del conto paper
 
-## ⚙️ Configuration
+Impostare `ALPACA_API_KEY` e `ALPACA_SECRET_KEY` nell'ambiente con credenziali paper. `from_env()` legge queste variabili; il codice non carica automaticamente un file `.env`.
 
-One global file controls **every** tunable parameter — **`config.toml`** (repo
-root): LLM models, broker (paper/live), risk & sizing, the Statute guardrails,
-screening, the autonomous cycle, data lookback and costs. It is the single
-source of truth; the **`.env` holds only secrets** (API keys + DB connection).
-Anything omitted keeps its default (`tradingagents/config.py`).
+```python
+from trading_agent.brokers.alpaca import AlpacaBroker
+from trading_agent.brokers.interface import Broker
 
-```toml
-[llm]
-provider   = "openrouter"
-deep_model = "openrouter/owl-alpha"   # free, tool-calling
-[broker]
-provider = "paper"       # "paper" (simulator) | "alpaca"
-mode     = "paper"       # "paper" | "live"  (alpaca)
-[risk]
-base_risk_pct = 0.01     # risk budget per trade (× conviction)
-k_stop = 2.0             # stop distance in ATR
-[charter]
-cash_reserve_pct = 0.10  # strategic cash reserve
-max_sector_pct = 0.30
-[cycle]
-interval_seconds = 3600  # autonomous loop period
+broker: Broker = AlpacaBroker.from_env()
+account = broker.get_account()
+positions = broker.get_positions()
+open_orders = broker.get_orders()
 ```
 
-## ✅ Testing
+Le factory `paper()` e `from_env()` selezionano sempre Alpaca paper. Questo esempio accede alla rete e richiede un conto; non è stato eseguito qui. Per modelli, filtri, errori e limiti vedere [il modulo Broker](docs/brokers.md).
+
+## Architettura e ambito
+
+La wiki definisce un **monolite modulare**, con broker e fonti dati sostituibili, database come hub persistente e separazione tra calcoli, strumenti, agenti e orchestrazione. Python è il linguaggio scelto; LangGraph e LangSmith sono le scelte documentate per il futuro layer agentico e non dipendenze del modulo attuale.
+
+Il primo adapter dati è `YahooFinanceProvider`: legge OHLCV storico tramite yfinance e lo normalizza in `PriceBar`. Gli agenti non chiamano Yahoo Finance direttamente; per capacità e limiti vedere [la ricerca Yahoo Finance](docs/research/yahoo-finance.md).
+
+L'MVP è **paper trading su azioni USA in USD**. La lettura del conto conserva eventuali posizioni e ordini di altri asset già presenti, così da non nascondere esposizioni. Questo non autorizza operazioni fuori ambito. La struttura `src/trading_agent/` è presente; il primo modulo funzionale è `brokers`, mentre gli altri package mantengono il ruolo di scaffolding.
+
+## Documentazione e sviluppo
+
+| Documento | Cosa contiene |
+|---|---|
+| [Trading Agent Wiki](https://github.com/cookkie03/trading-agent-wiki) | Requisiti, decisioni, backlog e fonti condivise |
+| [Architettura](docs/architecture.md) | Organizzazione del codice, dipendenze e passi successivi |
+| [Modulo Broker](docs/brokers.md) | Contratto implementato, esempi, test e limiti |
+| [Ricerca Alpaca](docs/research/alpaca-broker.md) | Fatti tecnici dalle fonti ufficiali e limiti della simulazione |
+| [Manutenzione della documentazione](docs/documentation.md) | Quali documenti aggiornare e come verificarli |
+| [AGENTS.md](AGENTS.md) | Regole operative per gli agenti che lavorano nel progetto |
+
+Prima di ogni lavoro consultare la [overview della wiki](../trading-agent-wiki/wiki/overview.md) e le pagine pertinenti. Per i link locali clonare le due repository nella stessa cartella padre, con nomi `trading-agent` e `trading-agent-wiki`.
+
+Si procede per step: wiki → confronto sui contratti → test del comportamento → implementazione → verifica e aggiornamento documentazione. Si usano le skill pertinenti di Matt Pocock, in particolare `codebase-design`, `domain-modeling`, `tdd` e `code-review`.
+
+## Integrazione Alpaca paper
+
+Copiare `.env.example` in `.env` e inserire localmente le credenziali paper, senza inviarle in chat. `.env` è escluso da Git. Eseguire esplicitamente il test di sola lettura:
 
 ```bash
-uv run python -m pytest -m "not integration"   # fast, offline, deterministic
-uv run python -m pytest -m integration         # network: yfinance · Alpaca · IBKR · LLM
+uv run --env-file .env pytest --alpaca-paper tests/integration -q
 ```
 
-The offline suite needs no network and no API keys — the brain runs against a fake LLM and the vendors against fake fetchers, so the tests are a true oracle for the design.
+Senza il flag il test di rete viene saltato; con il flag e credenziali mancanti fallisce. Non vengono inviati ordini. Il paper trading è una simulazione e non dimostra il comportamento di esecuzione sul mercato reale.
 
-## 🧭 Design philosophy
+## Docker
 
-- **LLMs reason, code computes.** Numbers come from tools and deterministic functions, never from the model's head.
-- **Real-time first, write-through.** Live data is fetched fresh and persisted; the DB stays the single source of truth.
-- **Few strong agents, not many weak ones.** Specialised desks with powerful tools, minimal context rot.
-- **Alpha-first / incremental.** Get a running slice, then deepen.
-
-## 🛣️ Roadmap
-
-- **Read-only dashboard** (Streamlit, SFC-fund style) to observe the running
-  daemon: portfolio, NAV, watchlist/universe, decisions and trades, alpha vs
-  benchmark, logs — observe, never control.
-- **Observability & evaluation**: LangSmith + LangGraph Studio for graph tracing, agent debugging and prompt evaluation.
-- **Inter-task agent memory** (learn from past cases) + systematic DB dedup.
-- **Live execution**: IBKR adapter, real options chain, service wrapper (24/7, market-hours scheduling, crash recovery).
-- **Parameter tuning** in backtest.
-
-## 📜 License
-
-Apache 2.0 (inherited from the upstream TradingAgents project this started from).
+Il deploy in produzione tramite Docker è un requisito confermato. È presente `.dockerignore`; Dockerfile e avvio container saranno definiti quando esisterà un flusso applicativo eseguibile. Il modulo attuale è una libreria di lettura: nessuna immagine Docker è stata costruita o distribuita.
