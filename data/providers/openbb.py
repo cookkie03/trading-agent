@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from typing import Any
 
-from ..models import FundamentalMetrics, PriceBar
+from ..models import FundamentalMetrics, MacroObservation, PriceBar
 
 
 class OpenBBProvider:
@@ -47,6 +47,32 @@ class OpenBBProvider:
         return FundamentalMetrics(
             symbol=symbol,
             values=values,
+            source=f"openbb:{self._provider}",
+            collected_at=collected_at,
+        )
+
+    def get_macro_series(self, series: str) -> MacroObservation:
+        series = series.strip().upper()
+        if not series:
+            raise ValueError("series must not be blank")
+
+        response = self._client.economy.fred_series(
+            symbol=series,
+            provider=self._provider,
+        )
+        rows = tuple(_rows(response))
+        if not rows:
+            raise ValueError(f"OpenBB returned no observations for {series}")
+        observations = tuple(
+            (_as_utc(row["date"]), Decimal(str(row[series])))
+            for row in rows
+            if row.get(series) is not None
+        )
+        collected_at = self._clock()
+        _require_aware_utc(collected_at, "clock result")
+        return MacroObservation(
+            series=series,
+            observations=observations,
             source=f"openbb:{self._provider}",
             collected_at=collected_at,
         )

@@ -1,6 +1,6 @@
 # Struttura del progetto — alberatura approvata
 
-Stato: alberatura approvata da Luca il 2026-10-30; creato lo scheletro dei package. Contratto Broker di sola lettura, adapter Alpaca paper e adapter OpenBB/yfinance per OHLCV e fundamentals implementati il 2026-10-31; execution e agenti ancora da sviluppare.
+Stato: alberatura approvata da Luca il 2026-10-30; creato lo scheletro dei package. Contratto Broker di sola lettura, adapter Alpaca paper e adapter OpenBB per OHLCV/fundamentals yfinance e serie macro FRED implementati il 2026-10-31; execution e agenti ancora da sviluppare.
 
 ## Obiettivo
 

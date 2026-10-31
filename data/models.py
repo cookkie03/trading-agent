@@ -6,6 +6,16 @@ from decimal import Decimal
 
 
 @dataclass(frozen=True)
+class MacroObservation:
+    """Serie macroeconomica normalizzata, con valori datati in UTC."""
+
+    series: str
+    observations: tuple[tuple[datetime, Decimal], ...]
+    source: str
+    collected_at: datetime
+
+
+@dataclass(frozen=True)
 class FundamentalMetrics:
     """Metriche fondamentali normalizzate per un simbolo."""
 

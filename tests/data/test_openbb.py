@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from data.interface import MarketDataProvider
-from data.models import FundamentalMetrics
+from data.models import FundamentalMetrics, MacroObservation
 from data.providers.openbb import OpenBBProvider
 
 
@@ -63,6 +63,40 @@ def test_openbb_fundamentals_are_normalized_without_exposing_openbb_types():
     assert metrics.symbol == "AAPL"
     assert metrics.values == {"pe_ratio": Decimal("39.5"), "beta": None}
     assert metrics.source == "openbb:yfinance"
+
+
+def test_openbb_macro_series_is_normalized_without_exposing_openbb_types():
+    class FakeMacroResponse:
+        def to_df(self):
+            return [
+                {"date": datetime(2024, 1, 1, tzinfo=UTC), "GDP": 27000.1},
+                {"date": datetime(2024, 4, 1, tzinfo=UTC), "GDP": 27200.2},
+            ]
+
+    class FakeEconomy:
+        def fred_series(self, *, symbol, provider):
+            assert symbol == "GDP"
+            assert provider == "fred"
+            return FakeMacroResponse()
+
+    class FakeOpenBBClientWithMacro:
+        economy = FakeEconomy()
+
+    provider = OpenBBProvider(
+        client=FakeOpenBBClientWithMacro(),
+        provider="fred",
+        clock=lambda: datetime(2024, 7, 1, 12, tzinfo=UTC),
+    )
+
+    series = provider.get_macro_series(" gdp ")
+
+    assert isinstance(series, MacroObservation)
+    assert series.series == "GDP"
+    assert series.observations == (
+        (datetime(2024, 1, 1, tzinfo=UTC), Decimal("27000.1")),
+        (datetime(2024, 4, 1, tzinfo=UTC), Decimal("27200.2")),
+    )
+    assert series.source == "openbb:fred"
 
 
 def test_openbb_history_is_normalized_without_exposing_openbb_types():

@@ -8,7 +8,7 @@ Progetto Python per un sistema multi-agente di analisi e gestione di un portafog
 
 Il commit locale `88ca413` ha rimosso l'implementazione precedente conservando le skill di Matt Pocock e le istruzioni del progetto. Il codice storico è [consultabile nella cronologia](https://github.com/cookkie03/trading-agent/tree/20bf209).
 
-Il layer dati espone modelli indipendenti dal vendor per OHLCV (`PriceBar`) e fundamentals (`FundamentalMetrics`). `OpenBBProvider` usa OpenBB 4.6 con yfinance per storico e metriche fondamentali; conserva il provider sottostante nella provenance (`openbb:yfinance`) e non espone tipi OpenBB al resto dell'applicazione. Installazione: `uv sync --extra openbb`. OpenBB resta un percorso di raccolta dati, non il contratto del progetto.
+Il layer dati espone modelli indipendenti dal vendor per OHLCV (`PriceBar`), fundamentals (`FundamentalMetrics`) e macro (`MacroObservation`). `OpenBBProvider` usa OpenBB 4.6 con yfinance per storico/metriche fondamentali e FRED per serie macro; conserva il provider sottostante nella provenance e non espone tipi OpenBB al resto dell'applicazione. Installazione: `uv sync --extra openbb`. OpenBB resta un percorso di raccolta dati, non il contratto del progetto.
 
 ## Setup e verifiche locali
 
@@ -22,7 +22,7 @@ uv run ruff format --check .
 uv run mypy
 ```
 
-Verifica del 2026-10-31: **41 test passati e 1 test di integrazione saltato**; prova reale OpenBB 4.6 → yfinance riuscita su AAPL per OHLCV e fundamentals. La suite predefinita usa il vero SDK Alpaca con risposte HTTP simulate, senza chiavi né accesso a un conto. La verifica di tipizzazione è attualmente limitata al package `brokers`. Le prove di integrazione paper sono opt-in e richiedono credenziali.
+Verifica del 2026-10-31: **44 test passati e 1 test di integrazione saltato**; prove reali OpenBB 4.6 riuscite su AAPL (OHLCV/fundamentals via yfinance) e GDP (319 osservazioni via FRED). La suite predefinita usa il vero SDK Alpaca con risposte HTTP simulate, senza chiavi né accesso a un conto. La verifica di tipizzazione è attualmente limitata al package `brokers`. Le prove di integrazione paper sono opt-in e richiedono credenziali.
 
 ## Prima lettura del conto paper
 
