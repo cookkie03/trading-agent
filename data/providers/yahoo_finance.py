@@ -11,7 +11,11 @@ from ..models import PriceBar
 
 
 class YahooFinanceProvider:
-    """Normalizza `yfinance.Ticker.history` nel contratto interno."""
+    """Normalizza ``yfinance.Ticker.history`` nel contratto interno.
+
+    ``auto_adjust`` resta disattivato e le azioni vengono escluse: la scelta
+    mantiene distinto il dato OHLCV osservato dalle trasformazioni del vendor.
+    """
 
     def __init__(
         self,

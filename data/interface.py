@@ -14,5 +14,9 @@ class MarketDataProvider(Protocol):
         end: datetime,
         interval: str = "1d",
     ) -> tuple[PriceBar, ...]:
-        """Restituisce barre OHLCV con inizio incluso e fine esclusa."""
+        """Restituisce barre OHLCV normalizzate nell'intervallo semiaperto.
+
+        ``start`` è incluso e ``end`` è escluso. Gli errori del provider
+        restano errori: non devono essere trasformati in una sequenza vuota.
+        """
         ...
