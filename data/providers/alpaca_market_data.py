@@ -22,7 +22,11 @@ _INTERVALS: dict[str, TimeFrame] = {
 
 
 class AlpacaMarketDataProvider:
-    """Legge barre equities storiche con feed esplicito e provenance."""
+    """Normalizza barre equities storiche con feed e provenienza espliciti.
+
+    L'SDK resta confinato all'adapter: il resto del sistema riceve solo
+    ``PriceBar`` e non deve conoscere i tipi Alpaca.
+    """
 
     def __init__(
         self,

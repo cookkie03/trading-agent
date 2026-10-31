@@ -9,7 +9,11 @@ from ..models import PriceBar
 
 
 class OpenBBProvider:
-    """Normalizza lo storico OpenBB senza esporre tipi o namespace OpenBB."""
+    """Normalizza lo storico OpenBB nel contratto interno.
+
+    OpenBB è un adapter sostituibile, non il contratto del core: nessun tipo
+    o namespace OpenBB deve attraversare questo modulo.
+    """
 
     def __init__(
         self,

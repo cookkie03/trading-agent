@@ -11,6 +11,8 @@ from .dashboard import ControlSurfaceReadModel, DashboardReadModel
 
 
 class DashboardServer:
+    """Espone il read model su loopback senza endpoint di scrittura."""
+
     def __init__(
         self,
         read_model: DashboardReadModel,
