@@ -40,9 +40,10 @@ sqlite3 data/trading.sqlite 'select source, external_id, symbol, metric, value f
 - `(source, external_id)` è la chiave di deduplicazione. `save()` restituisce `True` quando inserisce e `False` quando il record esiste già; una ripetizione non aggiorna silenziosamente dati già persistiti.
 - `SQLiteDatabase.transaction()` rende atomica una sequenza di scritture. Le query restano dentro il repository, non nei chiamanti.
 - Lo schema è versionato tramite `PRAGMA user_version`; le migrazioni sono applicate all’apertura.
-- `PriceBar` è il record OHLCV normalizzato: `symbol`, `interval`, timestamp, valori `Decimal`, `source`, `collected_at`, doppia data e payload raw. `MarketDataRepository` salva in modo idempotente sulla chiave `(symbol, interval, timestamp, source)` e legge finestre `[start, end)` ordinate per timestamp.
+- `PriceBar` è il record OHLCV normalizzato: `symbol`, `interval`, timestamp, valori `Decimal`, `source`, `collected_at`, doppia data e payload raw. `MarketDataRepository` salva in modo idempotente sulla chiave `(symbol, interval, timestamp, source)` e legge storia completa o finestre `[start, end)` ordinate per timestamp.
 - La migrazione `002_create_price_bars` aggiunge la tabella e l’indice di lettura; l’adapter Yahoo resta nel package data e non viene duplicato nello storage.
 - `scripts/ingest_market_data.py` è un runner guidato per OpenBB: adatta `data.models.PriceBar` al record storage e riporta inserimenti e duplicati per simbolo. `reference_date` usa il timestamp della barra; `publication_date` usa la data fornita dal provider oppure `collected_at`. La rete e le credenziali sono opt-in; i test del modulo usano un provider fake.
+- `SQLiteDashboardReadModel.sma(symbol, window, interval)` legge le chiusure persistite e restituisce `(timestamp_finale, valore)` per ogni finestra completa. È una capability read-only per la verifica locale; la persistenza compute-once dei derivati richiede una migrazione e un contratto dedicati, ancora fuori da questo step.
 
 ## Popolare il database con OpenBB
 

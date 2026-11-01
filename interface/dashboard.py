@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Protocol
 
+from analysis.indicators import simple_moving_average
 from storage.sqlite import SQLiteDatabase
 
 
@@ -124,6 +126,21 @@ class SQLiteDashboardReadModel:
     def __init__(self, database_path: str | Path, *, symbols: tuple[str, ...] = ()) -> None:
         self._database_path = Path(database_path)
         self._symbols = tuple(symbol.upper() for symbol in symbols)
+
+    def sma(
+        self, symbol: str, *, window: int, interval: str = "1d"
+    ) -> tuple[tuple[datetime, Decimal], ...]:
+        """Calculate a read-only SMA from the persisted close prices."""
+        if window <= 0:
+            raise ValueError("window must be positive")
+        if not self._database_path.exists():
+            return ()
+        with SQLiteDatabase(self._database_path) as database:
+            bars = database.market_data.history(symbol.upper(), interval)
+        averages = simple_moving_average(tuple(bar.close for bar in bars), window=window)
+        return tuple(
+            (bars[index + window - 1].timestamp, average) for index, average in enumerate(averages)
+        )
 
     def snapshot(self) -> DashboardSnapshot:
         if not self._database_path.exists():

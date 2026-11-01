@@ -304,6 +304,17 @@ class MarketDataRepository:
         ).fetchall()
         return tuple(row[0] for row in rows)
 
+    def history(self, symbol: str, interval: str = "1d") -> tuple[PriceBar, ...]:
+        rows = self._connection.execute(
+            """
+            SELECT * FROM price_bars
+            WHERE symbol = ? AND interval = ?
+            ORDER BY timestamp
+            """,
+            (symbol, interval),
+        ).fetchall()
+        return tuple(self._from_row(row) for row in rows)
+
     def list_between(
         self, symbol: str, interval: str, start: datetime, end: datetime
     ) -> tuple[PriceBar, ...]:
