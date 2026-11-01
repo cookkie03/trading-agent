@@ -9,7 +9,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Protocol
 
-from analysis.indicators import simple_moving_average
+from analysis.indicator_worker import SMA_FORMULA_VERSION, sma_parameters
 from storage.sqlite import SQLiteDatabase
 
 
@@ -136,11 +136,14 @@ class SQLiteDashboardReadModel:
         if not self._database_path.exists():
             return ()
         with SQLiteDatabase(self._database_path) as database:
-            bars = database.market_data.history(symbol.upper(), interval)
-        averages = simple_moving_average(tuple(bar.close for bar in bars), window=window)
-        return tuple(
-            (bars[index + window - 1].timestamp, average) for index, average in enumerate(averages)
-        )
+            values = database.indicators.get_ready(
+                symbol.upper(),
+                interval,
+                "sma",
+                sma_parameters(window),
+                SMA_FORMULA_VERSION,
+            )
+        return tuple((value.timestamp, value.value) for value in values)
 
     def snapshot(self) -> DashboardSnapshot:
         if not self._database_path.exists():

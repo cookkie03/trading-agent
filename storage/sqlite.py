@@ -76,6 +76,47 @@ _SCHEMA_MIGRATIONS: tuple[tuple[str, str], ...] = (
             ON broker_snapshots (source, observed_at);
         """,
     ),
+    (
+        "004_create_indicator_values_and_outbox",
+        """
+        CREATE TABLE indicator_values (
+            id INTEGER PRIMARY KEY,
+            symbol TEXT NOT NULL,
+            interval TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            indicator_name TEXT NOT NULL,
+            parameters TEXT NOT NULL,
+            value TEXT NOT NULL,
+            source_watermark TEXT NOT NULL,
+            formula_version TEXT NOT NULL,
+            status TEXT NOT NULL,
+            calculated_at TEXT NOT NULL,
+            UNIQUE (
+                symbol, interval, timestamp, indicator_name,
+                parameters, formula_version
+            )
+        );
+        CREATE INDEX indicator_values_ready_lookup
+            ON indicator_values (
+                symbol, interval, indicator_name, parameters,
+                formula_version, timestamp, status
+            );
+        CREATE TABLE outbox_events (
+            id INTEGER PRIMARY KEY,
+            event_key TEXT NOT NULL UNIQUE,
+            event_type TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            available_at TEXT NOT NULL,
+            attempts INTEGER NOT NULL DEFAULT 0,
+            claimed_at TEXT,
+            processed_at TEXT,
+            last_error TEXT
+        );
+        CREATE INDEX outbox_pending_lookup
+            ON outbox_events (processed_at, available_at, claimed_at, id);
+        """,
+    ),
 )
 
 
@@ -91,6 +132,33 @@ def _encode_datetime(value: datetime) -> str:
 
 def _decode_datetime(value: str) -> datetime:
     return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
+
+
+@dataclass(frozen=True)
+class IndicatorValue:
+    symbol: str
+    interval: str
+    timestamp: datetime
+    indicator_name: str
+    parameters: str
+    value: Decimal
+    source_watermark: str
+    formula_version: str
+    status: str
+    calculated_at: datetime
+
+
+@dataclass(frozen=True)
+class OutboxEvent:
+    event_key: str
+    event_type: str
+    payload: str
+    created_at: datetime
+    available_at: datetime | None = None
+    attempts: int = 0
+    claimed_at: datetime | None = None
+    processed_at: datetime | None = None
+    last_error: str | None = None
 
 
 @dataclass(frozen=True)
@@ -347,6 +415,165 @@ class MarketDataRepository:
         )
 
 
+class IndicatorRepository:
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def save(self, value: IndicatorValue) -> bool:
+        cursor = self._connection.execute(
+            """
+            INSERT OR IGNORE INTO indicator_values (
+                symbol, interval, timestamp, indicator_name, parameters,
+                value, source_watermark, formula_version, status, calculated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                value.symbol,
+                value.interval,
+                _encode_datetime(value.timestamp),
+                value.indicator_name,
+                value.parameters,
+                str(value.value),
+                value.source_watermark,
+                value.formula_version,
+                value.status,
+                _encode_datetime(value.calculated_at),
+            ),
+        )
+        if not self._connection.in_transaction:
+            self._connection.commit()
+        return cursor.rowcount == 1
+
+    def get_ready(
+        self,
+        symbol: str,
+        interval: str,
+        indicator_name: str,
+        parameters: str,
+        formula_version: str,
+    ) -> tuple[IndicatorValue, ...]:
+        rows = self._connection.execute(
+            """
+            SELECT * FROM indicator_values
+            WHERE symbol = ? AND interval = ? AND indicator_name = ?
+              AND parameters = ? AND formula_version = ? AND status = 'ready'
+            ORDER BY timestamp
+            """,
+            (symbol, interval, indicator_name, parameters, formula_version),
+        ).fetchall()
+        return tuple(self._from_row(row) for row in rows)
+
+    @staticmethod
+    def _from_row(row: sqlite3.Row) -> IndicatorValue:
+        return IndicatorValue(
+            symbol=row["symbol"],
+            interval=row["interval"],
+            timestamp=_decode_datetime(row["timestamp"]),
+            indicator_name=row["indicator_name"],
+            parameters=row["parameters"],
+            value=Decimal(row["value"]),
+            source_watermark=row["source_watermark"],
+            formula_version=row["formula_version"],
+            status=row["status"],
+            calculated_at=_decode_datetime(row["calculated_at"]),
+        )
+
+
+class OutboxRepository:
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def enqueue(self, event: OutboxEvent) -> bool:
+        available_at = event.available_at or event.created_at
+        cursor = self._connection.execute(
+            """
+            INSERT OR IGNORE INTO outbox_events
+                (event_key, event_type, payload, created_at, available_at, attempts,
+                 claimed_at, processed_at, last_error)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event.event_key,
+                event.event_type,
+                event.payload,
+                _encode_datetime(event.created_at),
+                _encode_datetime(available_at),
+                event.attempts,
+                _encode_datetime(event.claimed_at) if event.claimed_at else None,
+                _encode_datetime(event.processed_at) if event.processed_at else None,
+                event.last_error,
+            ),
+        )
+        if not self._connection.in_transaction:
+            self._connection.commit()
+        return cursor.rowcount == 1
+
+    def claim(self, *, limit: int, now: datetime) -> tuple[OutboxEvent, ...]:
+        if limit <= 0:
+            raise ValueError("limit must be positive")
+        now_text = _encode_datetime(now)
+        self._connection.execute("BEGIN IMMEDIATE")
+        try:
+            rows = self._connection.execute(
+                """
+                SELECT * FROM outbox_events
+                WHERE processed_at IS NULL AND available_at <= ?
+                  AND (claimed_at IS NULL OR claimed_at <= ?)
+                ORDER BY id LIMIT ?
+                """,
+                (now_text, now_text, limit),
+            ).fetchall()
+            events = tuple(self._from_row(row, now) for row in rows)
+            for event in events:
+                self._connection.execute(
+                    """
+                    UPDATE outbox_events
+                    SET attempts = attempts + 1, claimed_at = ?
+                    WHERE event_key = ? AND processed_at IS NULL
+                    """,
+                    (now_text, event.event_key),
+                )
+        except Exception:
+            self._connection.rollback()
+            raise
+        else:
+            self._connection.commit()
+        return events
+
+    def mark_failed(self, event_key: str, *, available_at: datetime, error: str) -> None:
+        self._connection.execute(
+            """UPDATE outbox_events
+               SET available_at = ?, claimed_at = NULL, last_error = ?
+               WHERE event_key = ? AND processed_at IS NULL""",
+            (_encode_datetime(available_at), error, event_key),
+        )
+        if not self._connection.in_transaction:
+            self._connection.commit()
+
+    def mark_processed(self, event_key: str, processed_at: datetime) -> None:
+        self._connection.execute(
+            """UPDATE outbox_events SET processed_at = ?, claimed_at = NULL
+               WHERE event_key = ? AND processed_at IS NULL""",
+            (_encode_datetime(processed_at), event_key),
+        )
+        if not self._connection.in_transaction:
+            self._connection.commit()
+
+    @staticmethod
+    def _from_row(row: sqlite3.Row, claimed_at: datetime) -> OutboxEvent:
+        return OutboxEvent(
+            event_key=row["event_key"],
+            event_type=row["event_type"],
+            payload=row["payload"],
+            created_at=_decode_datetime(row["created_at"]),
+            available_at=_decode_datetime(row["available_at"]),
+            attempts=row["attempts"] + 1,
+            claimed_at=claimed_at,
+            processed_at=None,
+            last_error=row["last_error"],
+        )
+
+
 class BrokerSnapshotRepository:
     """Persistenza storica e idempotente degli snapshot broker."""
 
@@ -398,6 +625,8 @@ class SQLiteDatabase:
         self._migrate()
         self.observations = ObservationRepository(self._connection)
         self.market_data = MarketDataRepository(self._connection)
+        self.indicators = IndicatorRepository(self._connection)
+        self.outbox = OutboxRepository(self._connection)
         self.broker_snapshots = BrokerSnapshotRepository(self._connection)
 
     @property

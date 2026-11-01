@@ -1,6 +1,25 @@
 # Trading Agent
 
-Project workspace directory for trading-agent.
+Progetto Python per un sistema multi-agente di analisi e gestione di un portafoglio azionario. Gli agenti elaborano informazioni e proposte; calcoli, controlli di rischio ed esecuzione restano deterministicamente verificabili.
+
+## Development locale
+
+Usa `.env` solo esplicitamente per i comandi che richiedono credenziali:
+
+```bash
+uv run --env-file .env python -m scripts.sync_portfolio \
+  --database data/trading-agent.db
+```
+
+Dopo l'ingestion, materializza gli indicatori dalla outbox:
+
+```bash
+uv run --env-file .env python -m scripts.materialize_indicators \
+  --database data/trading-agent.db \
+  --window 20
+```
+
+Il worker è idempotente: ripetere il comando non duplica gli indicatori già materializzati. La dashboard legge solo derivati `ready` dal database; non calcola indicatori on-the-fly.
 
 ## Dashboard locale
 

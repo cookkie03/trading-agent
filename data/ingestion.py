@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import datetime
 
+from storage.sqlite import OutboxEvent, SQLiteDatabase
 from storage.sqlite import PriceBar as StoredPriceBar
-from storage.sqlite import SQLiteDatabase
 
 from .interface import MarketDataProvider
 from .models import PriceBar
@@ -52,8 +53,30 @@ def ingest_ohlcv(
     inserted = 0
     with database.transaction():
         for bar in bars:
-            if database.market_data.save(to_stored_price_bar(bar)):
+            stored = to_stored_price_bar(bar)
+            if database.market_data.save(stored):
                 inserted += 1
+                event_key = (
+                    f"price_bar:{stored.symbol}:{stored.interval}:"
+                    f"{stored.timestamp.isoformat()}:{stored.source}"
+                )
+                database.outbox.enqueue(
+                    OutboxEvent(
+                        event_key=event_key,
+                        event_type="price_bar.committed",
+                        payload=json.dumps(
+                            {
+                                "symbol": stored.symbol,
+                                "interval": stored.interval,
+                                "timestamp": stored.timestamp.isoformat(),
+                                "source": stored.source,
+                            },
+                            sort_keys=True,
+                            separators=(",", ":"),
+                        ),
+                        created_at=stored.collected_at,
+                    )
+                )
     return IngestionResult(
         fetched=len(bars),
         inserted=inserted,

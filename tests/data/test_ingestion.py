@@ -56,3 +56,6 @@ def test_ingestion_is_idempotent_and_persists_price_bar(tmp_path) -> None:
         assert second.inserted == 0
         assert second.duplicates == 1
         assert len(database.market_data.list_between("AAPL", "1d", start, end)) == 1
+        claimed = database.outbox.claim(limit=10, now=datetime(2026, 11, 1, tzinfo=UTC))
+        assert len(claimed) == 1
+        assert claimed[0].event_type == "price_bar.committed"

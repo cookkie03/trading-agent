@@ -43,7 +43,9 @@ sqlite3 data/trading.sqlite 'select source, external_id, symbol, metric, value f
 - `PriceBar` è il record OHLCV normalizzato: `symbol`, `interval`, timestamp, valori `Decimal`, `source`, `collected_at`, doppia data e payload raw. `MarketDataRepository` salva in modo idempotente sulla chiave `(symbol, interval, timestamp, source)` e legge storia completa o finestre `[start, end)` ordinate per timestamp.
 - La migrazione `002_create_price_bars` aggiunge la tabella e l’indice di lettura; l’adapter Yahoo resta nel package data e non viene duplicato nello storage.
 - `scripts/ingest_market_data.py` è un runner guidato per OpenBB: adatta `data.models.PriceBar` al record storage e riporta inserimenti e duplicati per simbolo. `reference_date` usa il timestamp della barra; `publication_date` usa la data fornita dal provider oppure `collected_at`. La rete e le credenziali sono opt-in; i test del modulo usano un provider fake.
-- `SQLiteDashboardReadModel.sma(symbol, window, interval)` legge le chiusure persistite e restituisce `(timestamp_finale, valore)` per ogni finestra completa. È una capability read-only per la verifica locale; la persistenza compute-once dei derivati richiede una migrazione e un contratto dedicati, ancora fuori da questo step.
+- `indicator_values` conserva i derivati materializzati con parametri, watermark della barra finale, versione formula e stato; la chiave composta rende il worker idempotente. `outbox_events` collega la persistenza raw al worker con `event_key` deduplicato, claim, retry e stato processed.
+- `analysis.indicator_worker` consuma eventi `price_bar.committed`, materializza SMA v1 e offre `rebuild_sma()` dai raw. In development si può drenare l'outbox con `uv run --env-file .env python -m scripts.materialize_indicators --database data/trading-agent.db --window 20`.
+- `SQLiteDashboardReadModel.sma(symbol, window, interval)` legge solo valori `ready` da `indicator_values`; non calcola più on-the-fly. Se il worker non ha materializzato i dati, restituisce `()`.
 
 ## Popolare il database con OpenBB
 

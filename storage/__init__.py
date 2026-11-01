@@ -1,5 +1,5 @@
 """Persistenza, repository e migrazioni dei dati."""
 
-from .sqlite import Observation, PriceBar, SQLiteDatabase
+from .sqlite import IndicatorValue, Observation, OutboxEvent, PriceBar, SQLiteDatabase
 
-__all__ = ["Observation", "PriceBar", "SQLiteDatabase"]
+__all__ = ["IndicatorValue", "Observation", "OutboxEvent", "PriceBar", "SQLiteDatabase"]
