@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -129,14 +130,27 @@ class SQLiteDashboardReadModel:
             return DashboardSnapshot.empty()
         with SQLiteDatabase(self._database_path) as database:
             bars = self._latest_bars(database)
-        if not bars:
+            portfolio = self._portfolio(database)
+        if not bars and portfolio is None:
             return DashboardSnapshot.empty()
-        latest = max(bars, key=lambda bar: bar.collected_at)
+        latest_bar = max(bars, key=lambda bar: bar.collected_at) if bars else None
+        portfolio_observed_at, portfolio_data = portfolio or (None, None)
+        observed_at = max(
+            (
+                value
+                for value in (
+                    latest_bar.collected_at if latest_bar else None,
+                    portfolio_observed_at,
+                )
+                if value is not None
+            ),
+        )
         return DashboardSnapshot(
-            observed_at=latest.collected_at,
-            source=latest.source,
-            freshness=latest.collected_at.isoformat(),
-            portfolio=PortfolioReadModel(
+            observed_at=observed_at,
+            source="alpaca" if portfolio_data else latest_bar.source,
+            freshness=observed_at.isoformat(),
+            portfolio=portfolio_data
+            or PortfolioReadModel(
                 available=False,
                 reason="Portfolio data not ingested",
             ),
@@ -159,6 +173,22 @@ class SQLiteDashboardReadModel:
                 "benchmark": "post-mvp",
                 "system_run": "unavailable",
             },
+        )
+
+    def _portfolio(self, database: SQLiteDatabase):
+        latest = database.broker_snapshots.latest("alpaca")
+        if latest is None:
+            return None
+        observed_at, payload = latest
+        data = json.loads(payload)
+        account = data["account"]
+        return observed_at, PortfolioReadModel(
+            available=True,
+            reason=None,
+            cash=account["cash"],
+            equity=account["equity"],
+            positions=data["positions"],
+            orders=data["orders"],
         )
 
     def _latest_bars(self, database: SQLiteDatabase):

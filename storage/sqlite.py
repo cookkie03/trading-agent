@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -57,6 +58,22 @@ _SCHEMA_MIGRATIONS: tuple[tuple[str, str], ...] = (
         );
         CREATE INDEX price_bars_lookup
             ON price_bars (symbol, interval, timestamp);
+        """,
+    ),
+    (
+        "003_create_broker_snapshots",
+        """
+        CREATE TABLE broker_snapshots (
+            id INTEGER PRIMARY KEY,
+            source TEXT NOT NULL,
+            observed_at TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            payload_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE (source, payload_hash)
+        );
+        CREATE INDEX broker_snapshots_latest
+            ON broker_snapshots (source, observed_at);
         """,
     ),
 )
@@ -319,6 +336,43 @@ class MarketDataRepository:
         )
 
 
+class BrokerSnapshotRepository:
+    """Persistenza storica e idempotente degli snapshot broker."""
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def save(self, source: str, observed_at: datetime, payload: str) -> bool:
+        digest = hashlib.sha256(payload.encode()).hexdigest()
+        cursor = self._connection.execute(
+            """
+            INSERT OR IGNORE INTO broker_snapshots
+                (source, observed_at, payload, payload_hash, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                source,
+                _encode_datetime(observed_at),
+                payload,
+                digest,
+                _encode_datetime(datetime.now(UTC)),
+            ),
+        )
+        if not self._connection.in_transaction:
+            self._connection.commit()
+        return cursor.rowcount == 1
+
+    def latest(self, source: str) -> tuple[datetime, str] | None:
+        row = self._connection.execute(
+            """
+            SELECT observed_at, payload FROM broker_snapshots
+            WHERE source = ? ORDER BY observed_at DESC, id DESC LIMIT 1
+            """,
+            (source,),
+        ).fetchone()
+        return None if row is None else (_decode_datetime(row[0]), row[1])
+
+
 class SQLiteDatabase:
     """Gateway SQLite: i chiamanti usano repository, non SQL diretto.
 
@@ -333,6 +387,7 @@ class SQLiteDatabase:
         self._migrate()
         self.observations = ObservationRepository(self._connection)
         self.market_data = MarketDataRepository(self._connection)
+        self.broker_snapshots = BrokerSnapshotRepository(self._connection)
 
     @property
     def schema_version(self) -> int:
