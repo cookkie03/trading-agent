@@ -92,6 +92,12 @@ def _parse_feed(feed: str) -> DataFeed:
         raise ValueError(f"Unsupported Alpaca feed: {feed}; expected one of {allowed}") from error
 
 
+def _field(row: Mapping[str, Any], name: str) -> Any:
+    if isinstance(row, Mapping):
+        return row[name]
+    return getattr(row, name)
+
+
 def _bar(
     symbol: str,
     interval: str,
@@ -99,16 +105,16 @@ def _bar(
     feed: str,
     collected_at: datetime,
 ) -> PriceBar:
-    timestamp = _as_utc(row["timestamp"])
+    timestamp = _as_utc(_field(row, "timestamp"))
     return PriceBar(
         symbol=symbol,
         interval=interval,
         timestamp=timestamp,
-        open=Decimal(str(row["open"])),
-        high=Decimal(str(row["high"])),
-        low=Decimal(str(row["low"])),
-        close=Decimal(str(row["close"])),
-        volume=Decimal(str(row["volume"])),
+        open=Decimal(str(_field(row, "open"))),
+        high=Decimal(str(_field(row, "high"))),
+        low=Decimal(str(_field(row, "low"))),
+        close=Decimal(str(_field(row, "close"))),
+        volume=Decimal(str(_field(row, "volume"))),
         source=f"alpaca:{feed}",
         collected_at=collected_at,
         reference_date=timestamp,

@@ -2,6 +2,10 @@
 
 Progetto Python per un sistema multi-agente di analisi e gestione di un portafoglio azionario. Gli agenti elaborano informazioni e proposte; calcoli, controlli di rischio ed esecuzione restano deterministicamente verificabili.
 
+## Configurazione
+
+`config.Settings` centralizza i parametri runtime e legge `.env` quando il comando lo abilita. I segreti Alpaca devono essere forniti insieme; una configurazione parziale viene rifiutata. I default locali sono `data/trading-agent.db`, `localhost` e porta `8000`.
+
 ## Development locale
 
 Usa `.env` solo esplicitamente per i comandi che richiedono credenziali:
@@ -57,3 +61,7 @@ claude mcp get mempalace
 Il server MCP deve puntare a `mempalace-mcp --palace /home/luca/.config/mempalace/palace`.
 La raccolta mantiene il repository principale e tutti i worktree Git registrati; prima di
 rimuovere dati usare sempre `sync --dry-run` e verificare il report.
+
+## Strategy state
+
+Il primo contratto generico per le valutazioni strategiche è in [`analysis/strategy_state.py`](analysis/strategy_state.py), con test in [`tests/analysis/test_strategy_state.py`](tests/analysis/test_strategy_state.py). Supporta strategie diverse tramite definizione versionata, parametri e feature estensibili senza fissare gli indicatori nel modello comune. La strategia MVP corrente usa barre hourly. Dettagli: [`docs/strategy-state.md`](docs/strategy-state.md).

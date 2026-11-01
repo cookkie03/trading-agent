@@ -18,3 +18,7 @@ entities.json
 
 # Claude Code local transcripts
 docs/claude-chats/
+
+# Telegram bridge local state
+telegram-claude/sessions.sqlite3
+telegram-claude/__pycache__/
