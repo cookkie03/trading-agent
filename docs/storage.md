@@ -42,7 +42,7 @@ sqlite3 data/trading.sqlite 'select source, external_id, symbol, metric, value f
 - Lo schema è versionato tramite `PRAGMA user_version`; le migrazioni sono applicate all’apertura.
 - `PriceBar` è il record OHLCV normalizzato: `symbol`, `interval`, timestamp, valori `Decimal`, `source`, `collected_at`, doppia data e payload raw. `MarketDataRepository` salva in modo idempotente sulla chiave `(symbol, interval, timestamp, source)` e legge finestre `[start, end)` ordinate per timestamp.
 - La migrazione `002_create_price_bars` aggiunge la tabella e l’indice di lettura; l’adapter Yahoo resta nel package data e non viene duplicato nello storage.
-- `scripts/ingest_market_data.py` è uno smoke test guidato per Yahoo Finance e Alpaca: adatta `data.models.PriceBar` al record storage, usa il timestamp della barra come `reference_date`/`publication_date` quando il provider non li espone e riporta inserimenti e duplicati per simbolo. La rete e le credenziali sono opt-in; i test del modulo usano un provider fake.
+- `scripts/ingest_market_data.py` è un runner guidato per OpenBB: adatta `data.models.PriceBar` al record storage e riporta inserimenti e duplicati per simbolo. `reference_date` usa il timestamp della barra; `publication_date` usa la data fornita dal provider oppure `collected_at`. La rete e le credenziali sono opt-in; i test del modulo usano un provider fake.
 
 ## Popolare il database con OpenBB
 

@@ -1,8 +1,8 @@
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from data.ingestion import ingest_ohlcv, to_stored_price_bar
 from data.models import PriceBar as ProviderPriceBar
-from scripts.ingest_market_data import ingest, to_storage_bar
 from storage import SQLiteDatabase
 
 
@@ -32,13 +32,13 @@ def provider_bar(timestamp):
     )
 
 
-def test_to_storage_bar_fills_temporal_metadata_from_bar_timestamp():
+def test_to_stored_price_bar_fills_temporal_metadata_from_bar_timestamp():
     timestamp = datetime(2026, 10, 30, tzinfo=UTC)
 
-    stored = to_storage_bar(provider_bar(timestamp))
+    stored = to_stored_price_bar(provider_bar(timestamp))
 
     assert stored.timestamp == timestamp
-    assert stored.publication_date == timestamp
+    assert stored.publication_date == provider_bar(timestamp).collected_at
     assert stored.reference_date == timestamp
     assert stored.source == "yahoo_finance"
 
@@ -50,22 +50,26 @@ def test_ingest_is_idempotent_and_reports_inserted_and_duplicates(tmp_path):
 
     start = datetime(2026, 10, 1, tzinfo=UTC)
     end = datetime(2026, 11, 1, tzinfo=UTC)
-    first = ingest(
+    first = ingest_ohlcv(
         provider,
         database,
-        symbols=("AAPL",),
+        symbol="AAPL",
         start=start,
         end=end,
     )
-    second = ingest(
+    second = ingest_ohlcv(
         provider,
         database,
-        symbols=("AAPL",),
+        symbol="AAPL",
         start=start,
         end=end,
     )
 
-    assert first == {"AAPL": {"fetched": 1, "inserted": 1, "duplicates": 0}}
-    assert second == {"AAPL": {"fetched": 1, "inserted": 0, "duplicates": 1}}
+    assert first.fetched == 1
+    assert first.inserted == 1
+    assert first.duplicates == 0
+    assert second.fetched == 1
+    assert second.inserted == 0
+    assert second.duplicates == 1
     assert len(database.market_data.list_between("AAPL", "1d", start, end)) == 1
     database.close()
