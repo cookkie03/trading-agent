@@ -29,7 +29,7 @@ npm ci --prefix frontend
 Poi avvia frontend e backend insieme:
 
 ```bash
-./scripts/run_dashboard_dev.sh
+./run_dashboard.sh
 ```
 
 Apri `http://localhost:5173`; il backend read-only ascolta su `http://localhost:8000`.

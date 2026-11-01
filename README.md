@@ -7,7 +7,7 @@ Project workspace directory for trading-agent.
 Avvia frontend React/Vite e backend Python read-only insieme dalla root del repository:
 
 ```bash
-./scripts/run_dashboard_dev.sh
+./run_dashboard.sh
 ```
 
 Apri `http://localhost:5173`. Il backend è disponibile su `http://localhost:8000`.
