@@ -18,4 +18,6 @@ La UI usa React + TypeScript + Vite/npm e legge contratti HTTP read-only dal bac
 
 Il backend espone `GET /api/dashboard` e `GET /api/health` su loopback. Il launcher `scripts/run_dashboard.py` legge il database indicato da `TRADING_AGENT_DB` (default `data/trading-agent.db`) e mantiene uno stato esplicito vuoto se il file non esiste. Il frontend usa `VITE_API_BASE_URL` per il backend e aggiorna via polling; npm non rende i dati finanziari real-time.
 
-Per avviare il backend in Docker usare `docker compose build && docker compose up -d`; il volume `trading-agent-data` conserva SQLite e il servizio resta read-only verso l'HTTP. L'ingestion OpenBB è sempre un comando esplicito separato e non parte automaticamente nel container.
+Per sviluppo usare `./scripts/run_dashboard_dev.sh`: avvia il backend read-only senza Docker e usa `TRADING_AGENT_DB` (default `data/trading-agent.db`). Il frontend Vite resta separato e si avvia con `npm --prefix frontend run dev`.
+
+Per deployment persistente/local-production usare `docker compose build && docker compose up -d`; il volume `trading-agent-data` conserva SQLite e il servizio resta read-only verso l'HTTP. Ingestion OpenBB e sync portfolio Alpaca sono sempre comandi espliciti separati e non partono automaticamente nel container.

@@ -10,9 +10,33 @@ Il commit locale `88ca413` ha rimosso l'implementazione precedente conservando l
 
 Il layer dati espone `MarketDataProvider` e `PriceBar`, indipendenti dal vendor. Sono disponibili due adapter sostituibili: `YahooFinanceProvider` diretto e `OpenBBProvider`. OpenBB è opzionale e viene installato con `uv sync --extra openbb`; l'adapter conserva il provider sottostante nella provenance (`openbb:yfinance`) e non espone tipi OpenBB al resto dell'applicazione. OpenBB resta quindi un percorso di raccolta dati, non il contratto del progetto.
 
+Con `ALPACA_API_KEY` e `ALPACA_SECRET_KEY` configurate nell'ambiente, il portfolio paper può essere sincronizzato nel DB centrale senza inviare ordini:
+
+```bash
+uv run python -m scripts.sync_portfolio --database data/trading-agent.db
+```
+
+Account, posizioni e ordini vengono salvati come snapshot broker deduplicati; la dashboard li legge dal DB e non interroga direttamente Alpaca.
+
+## Avvio sviluppo locale
+
+Per sviluppo e ispezione rapida non serve Docker. Il launcher avvia solo il backend read-only e usa un file SQLite locale:
+
+```bash
+./scripts/run_dashboard_dev.sh
+curl http://localhost:8000/api/health
+```
+
+Il frontend Vite resta separato:
+
+```bash
+npm ci --prefix frontend
+npm --prefix frontend run dev --prefix frontend
+```
+
 ## Avvio Docker del backend read-only
 
-Il backend locale può essere eseguito con SQLite persistente in un volume Docker:
+Docker è il percorso per un deployment persistente/local-production, non il requisito del ciclo dev. Il backend può essere eseguito con SQLite persistente in un volume Docker:
 
 ```bash
 docker compose build
@@ -93,4 +117,4 @@ Senza il flag il test di rete viene saltato; con il flag e credenziali mancanti 
 
 ## Docker
 
-Il deploy in produzione tramite Docker è un requisito confermato. È presente `.dockerignore`; Dockerfile e avvio container saranno definiti quando esisterà un flusso applicativo eseguibile. Il modulo attuale è una libreria di lettura: nessuna immagine Docker è stata costruita o distribuita.
+Il deploy in produzione tramite Docker è supportato da `Dockerfile` e `compose.yaml`. L'immagine espone il backend read-only, usa un volume SQLite persistente e non avvia ingestion o ordini automaticamente. Per il ciclo dev usare `scripts/run_dashboard_dev.sh`.
