@@ -18,4 +18,19 @@ La UI usa React + TypeScript + Vite/npm e legge contratti HTTP read-only dal bac
 
 Il backend espone `GET /api/dashboard` e `GET /api/health` su loopback. L’adapter iniziale `EmptyDashboardReadModel` serve per verificare UI, loading, errore e stato vuoto senza credenziali. Il frontend usa `VITE_API_BASE_URL` per il backend e aggiorna via polling; npm non rende i dati finanziari real-time.
 
-Per i comandi esatti e la configurazione persistente vedere la sezione README che verrà integrata dalla chat principale; questa chat non modifica README.
+## Avvio locale
+
+Dalla root del repository, installa le dipendenze frontend una sola volta:
+
+```bash
+npm ci --prefix frontend
+```
+
+Poi avvia frontend e backend insieme:
+
+```bash
+./scripts/run_dashboard_dev.sh
+```
+
+Apri `http://localhost:5173`; il backend read-only ascolta su `http://localhost:8000`.
+Il launcher non avvia `openbb-ui` e chiude entrambi i processi con `Ctrl+C`.
