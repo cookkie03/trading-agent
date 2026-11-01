@@ -21,6 +21,8 @@ uv run --env-file .env python -m scripts.materialize_indicators \
 
 Il worker è idempotente: ripetere il comando non duplica gli indicatori già materializzati. La dashboard legge solo derivati `ready` dal database; non calcola indicatori on-the-fly.
 
+Le formule pure disponibili in `analysis/indicators.py` sono SMA, EMA, RSI Wilder, MACD, ATR Wilder e Pivot Points classici. Sono funzioni deterministiche testate, ma la pipeline di persistenza materializza attualmente solo SMA v1: l'estensione agli altri indicatori richiede la chiusura dei parametri MVP e delle relative versioni di formula.
+
 ## Dashboard locale
 
 Avvia frontend React/Vite e backend Python read-only insieme dalla root del repository:
