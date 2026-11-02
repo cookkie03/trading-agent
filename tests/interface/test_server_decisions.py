@@ -7,6 +7,49 @@ from interface.server import DashboardServer
 from storage.sqlite import DecisionRecord, SQLiteDatabase
 
 
+def test_missing_desk_evidence_does_not_produce_an_approved_decision_over_http(tmp_path):
+    from decimal import Decimal
+
+    from tests.workflows.test_trade_cycle import approved_state
+    from workflows.langgraph_workflow import build_research_graph
+
+    result = build_research_graph().invoke(
+        {
+            "research": approved_state(),
+            "portfolio": {
+                "equity": Decimal("10000"),
+                "cash": Decimal("5000"),
+                "open_risk": Decimal("0"),
+                "symbol_exposure": Decimal("0"),
+            },
+            "limits": {"max_symbol_exposure": Decimal("0.10")},
+            "entry_price": Decimal("100"),
+        }
+    )
+    path = tmp_path / "incomplete.db"
+    with SQLiteDatabase(path) as database:
+        database.decisions.save(
+            DecisionRecord(
+                client_order_id="run-1:AAPL",
+                symbol="AAPL",
+                status=result["decision"],
+                direction="long",
+                conviction="buy",
+                rationale="desk evidence pending",
+                observed_at=datetime.now(UTC),
+                payload="run-1",
+            )
+        )
+    server = DashboardServer(SQLiteDashboardReadModel(path), port=0)
+    server.start()
+    try:
+        with urlopen(server.url("/api/dashboard")) as response:
+            decision = json.load(response)["decisions"][0]
+    finally:
+        server.close()
+    assert decision["status"] != "approved"
+
+
 def test_reviewed_trade_uses_same_risk_quantity_through_dashboard(tmp_path):
     from dataclasses import replace
     from decimal import Decimal

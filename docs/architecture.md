@@ -115,6 +115,10 @@ Il rilascio dovrà includere Dockerfile e procedura di build riproducibile con d
 
 Stato di questo step: packaging `src/` e `.dockerignore` presenti. Dockerfile, comando applicativo, lock delle dipendenze e validazione container arriveranno con il primo flusso eseguibile. Nessuna immagine o distribuzione produzione è attestata da questo scaffolding.
 
+## Evidenze desk — 2026-11-02
+
+Il grafo di ricerca lascia `pending` la decisione quando mancano evidenze dei desk o la review tecnica è incompleta; un veto risk resta `rejected`. I desk non tecnici sono ancora placeholder senza provider: questo controllo impedisce al grafo di presentarli come una sintesi approvata, ma non collega automaticamente il grafo a `TradeCycle`, che continua a richiedere uno state approvato dal chiamante.
+
 ## Composizione paper — 2026-11-02
 
 `workflows.paper_runtime` collega trade cycle, adapter Alpaca e repository SQLite per ordini e decisioni. La factory Alpaca usa `paper=True`, non accetta override URL e rifiuta configurazioni diverse dall'endpoint paper. È una composizione invocabile, non ancora un runtime automatico provider→agenti; persistenza e riconciliazione sono verificate offline con client simulato. Il 2026-11-02 è stato verificato anche un bracket AAPL non marketable attraverso `TradeCycle` e questa factory sul conto paper: cancellazione confermata dal broker, quantità eseguita 0, riconciliazione SQLite `CANCELLED`. Lo state e il portfolio del test erano fixture controllate, non dati di ricerca o portfolio reali; non è un E2E provider→decisione.

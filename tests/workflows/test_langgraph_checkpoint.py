@@ -25,6 +25,6 @@ def test_graph_accepts_checkpoint_saver_and_keeps_thread_state():
         config,
     )
 
-    assert result["decision"] == "approved"
+    assert result["decision"] == "pending"
     checkpoint = graph.get_state(config)
-    assert checkpoint.values["decision"] == "approved"
+    assert checkpoint.values["decision"] == "pending"

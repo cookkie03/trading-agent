@@ -41,7 +41,7 @@ def _desk_node(state: ResearchGraphState) -> dict[str, tuple[DeskOpinion, ...]]:
 
 def _pm_node(state: ResearchGraphState) -> dict[str, bool]:
     opinions = state["desk_opinions"]
-    return {"pm_ready": len(opinions) == 4}
+    return {"pm_ready": len(opinions) == 4 and all(opinion.evidence for opinion in opinions)}
 
 
 def _technical_node(state: ResearchGraphState) -> dict[str, bool]:
@@ -64,7 +64,11 @@ def _risk_node(state: ResearchGraphState) -> dict[str, RiskReview]:
 
 def _decision_node(state: ResearchGraphState) -> dict[str, str]:
     review = state["risk_review"]
-    return {"decision": "approved" if review.approved else "rejected"}
+    if not review.approved:
+        return {"decision": "rejected"}
+    return {
+        "decision": "approved" if state["pm_ready"] and state["technical_complete"] else "pending"
+    }
 
 
 def build_research_graph(*, checkpointer=None):
