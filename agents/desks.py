@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from analysis.strategy_state import ResearchState
 from data.providers.alpaca_news import NewsItem
+from data.providers.yahoo_fundamentals import FundamentalObservation
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,7 @@ class DeskContext:
     current_price: Decimal
     research: ResearchState
     news: tuple[NewsItem, ...] = ()
+    fundamentals: tuple[FundamentalObservation, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -44,9 +46,16 @@ def run_desks(context: DeskContext) -> tuple[DeskOpinion, ...]:
         ),
         DeskOpinion(
             desk="fundamentals",
-            view="fundamentals context pending provider evidence",
-            rationale="Earnings and valuation claims require cited fundamental observations.",
-            evidence=(),
+            view=(
+                "; ".join(f"{item.metric}: {item.value}" for item in context.fundamentals)
+                if context.fundamentals
+                else "fundamentals context pending provider evidence"
+            ),
+            rationale="Current provider observations are not historical financial statements.",
+            evidence=tuple(
+                f"{item.source} | observed {item.observed_at.isoformat()}"
+                for item in context.fundamentals
+            ),
         ),
         DeskOpinion(
             desk="sentiment",

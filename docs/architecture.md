@@ -115,6 +115,10 @@ Il rilascio dovrà includere Dockerfile e procedura di build riproducibile con d
 
 Stato di questo step: packaging `src/` e `.dockerignore` presenti. Dockerfile, comando applicativo, lock delle dipendenze e validazione container arriveranno con il primo flusso eseguibile. Nessuna immagine o distribuzione produzione è attestata da questo scaffolding.
 
+## Fundamentals correnti — 2026-11-02
+
+`YahooFundamentalsProvider` espone la capitalizzazione corrente con simbolo, fonte e istante di osservazione al desk fundamentals; è un dato singolo, non un'analisi fondamentale completa né una serie point-in-time utilizzabile per backtest. Il ciclo rifiuta osservazioni successive ad `as_of`. Adapter e desk verificati offline con fixture; fonte reale, freschezza specifica e persistenza non ancora verificate.
+
 ## News e desk sentiment — 2026-11-02
 
 `AlpacaNewsProvider` normalizza titoli con fonte, URL e data; il ciclo provider può passarli al desk sentiment. Le notizie sono osservazioni, non un punteggio o una conclusione di sentiment. Copertura limitata alle prime 50 notizie della risposta: paginazione, persistenza delle fonti e sintesi LLM restano aperte. Il feed Alpaca news è stato interrogato in sola lettura; il collegamento al desk è verificato con client simulato.

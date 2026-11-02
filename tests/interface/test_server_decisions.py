@@ -7,6 +7,29 @@ from interface.server import DashboardServer
 from storage.sqlite import DecisionRecord, SQLiteDatabase
 
 
+def test_fundamentals_provider_supplies_sourced_observation_to_desk(tmp_path):
+    from decimal import Decimal
+    from types import SimpleNamespace
+
+    from agents.desks import DeskContext, run_desks
+    from data.providers.yahoo_fundamentals import YahooFundamentalsProvider
+    from tests.workflows.test_trade_cycle import approved_state
+
+    provider = YahooFundamentalsProvider(
+        ticker_factory=lambda symbol: SimpleNamespace(info={"marketCap": 123000}),
+        clock=lambda: datetime(2026, 11, 1, tzinfo=UTC),
+    )
+    state = approved_state()
+    observations = provider.get_fundamentals("AAPL")
+    opinions = run_desks(
+        DeskContext(state.symbol, state.as_of, Decimal("100"), state, fundamentals=observations)
+    )
+    desk = next(opinion for opinion in opinions if opinion.desk == "fundamentals")
+    assert "123000" in desk.view
+    assert "yahoo" in desk.evidence[0]
+    assert "2026-11-01" in desk.evidence[0]
+
+
 def test_news_provider_supplies_attributed_sentiment_evidence(tmp_path):
     from decimal import Decimal
     from types import SimpleNamespace

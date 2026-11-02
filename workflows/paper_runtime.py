@@ -23,7 +23,9 @@ def paper_runtime(client, database):
     return TradeCycle(executor, database.decisions), executor
 
 
-def run_research_cycle(client, database, state, portfolio, limits, entry_price, *, news=()):
+def run_research_cycle(
+    client, database, state, portfolio, limits, entry_price, *, news=(), fundamentals=()
+):
     """Run research and only execute a decision approved by the complete graph."""
     result = build_research_graph().invoke(
         {
@@ -32,6 +34,7 @@ def run_research_cycle(client, database, state, portfolio, limits, entry_price, 
             "limits": asdict(limits),
             "entry_price": entry_price,
             "news": news,
+            "fundamentals": fundamentals,
         }
     )
     if result["decision"] == "approved":
@@ -75,6 +78,7 @@ def run_provider_research_cycle(
     expected_timestamps: tuple[datetime, ...] | None = None,
     calendar_client=None,
     news_provider=None,
+    fundamentals_provider=None,
 ):
     """Ingest provider bars and attach their latest close to technical research."""
     if as_of.utcoffset() is None or max_age <= timedelta(0):
@@ -129,7 +133,14 @@ def run_provider_research_cycle(
         ),
     )
     news = news_provider.get_news(state.symbol, start, end) if news_provider else ()
-    return run_research_cycle(client, database, state, portfolio, limits, bar.close, news=news)
+    fundamentals = (
+        fundamentals_provider.get_fundamentals(state.symbol) if fundamentals_provider else ()
+    )
+    if any(item.observed_at > as_of or item.symbol != state.symbol for item in fundamentals):
+        raise ValueError("fundamental observation is not valid as of this run")
+    return run_research_cycle(
+        client, database, state, portfolio, limits, bar.close, news=news, fundamentals=fundamentals
+    )
 
 
 def alpaca_paper_runtime(settings: Settings, database):
