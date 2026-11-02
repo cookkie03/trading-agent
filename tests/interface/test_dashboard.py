@@ -15,6 +15,12 @@ from interface.server import DashboardServer
 from storage.sqlite import SQLiteDatabase
 
 
+def test_dashboard_launcher_imports_its_public_dependencies() -> None:
+    from interface import DashboardServer, EmptyControlSurfaceReadModel, SQLiteDashboardReadModel
+
+    assert all((DashboardServer, EmptyControlSurfaceReadModel, SQLiteDashboardReadModel))
+
+
 def test_empty_read_model_explains_unavailable_data() -> None:
     snapshot = EmptyDashboardReadModel().snapshot()
 

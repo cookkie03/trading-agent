@@ -5,6 +5,7 @@ from .dashboard import (
     DashboardReadModel,
     EmptyControlSurfaceReadModel,
     EmptyDashboardReadModel,
+    SQLiteDashboardReadModel,
 )
 from .server import DashboardServer
 
@@ -14,4 +15,5 @@ __all__ = [
     "DashboardServer",
     "EmptyControlSurfaceReadModel",
     "EmptyDashboardReadModel",
+    "SQLiteDashboardReadModel",
 ]
