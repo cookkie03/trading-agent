@@ -64,6 +64,52 @@ def test_trade_cycle_submits_approved_paper_bracket_to_alpaca():
     assert client.submitted[0].stop_loss.stop_price == 96.0
 
 
+def test_paper_runtime_rejects_live_endpoint_before_client_creation(tmp_path):
+    import pytest
+
+    from config import Settings
+    from storage.sqlite import SQLiteDatabase
+    from workflows.paper_runtime import alpaca_paper_runtime
+
+    settings = Settings(
+        ALPACA_API_KEY="test",
+        ALPACA_SECRET_KEY="test",
+        ALPACA_TRADING_URL="https://api.alpaca.markets/v2",
+    )
+    with SQLiteDatabase(tmp_path / "paper.db") as database:
+        with pytest.raises(ValueError, match="paper endpoint"):
+            alpaca_paper_runtime(settings, database)
+
+
+def test_paper_runtime_persists_and_reconciles_through_alpaca_adapter(tmp_path):
+    from storage.sqlite import SQLiteDatabase
+    from workflows.paper_runtime import paper_runtime
+
+    class Client(FakeClient):
+        def get_order_by_client_id(self, client_order_id):
+            return SimpleNamespace(
+                id="broker-1", client_order_id=client_order_id, status="canceled"
+            )
+
+    client = Client()
+    path = tmp_path / "runtime.db"
+    with SQLiteDatabase(path) as database:
+        cycle, executor = paper_runtime(client, database)
+        result = cycle.run(approved_state(), portfolio(), RiskLimits(), Decimal("100"))
+        assert result.submission.broker_order_id == "broker-1"
+        request = OrderRequest(
+            client_order_id="run-1:AAPL",
+            symbol="AAPL",
+            quantity=Decimal("10"),
+            limit_price=Decimal("100"),
+            take_profit_price=Decimal("106"),
+            stop_price=Decimal("96"),
+        )
+        assert executor.reconcile(request).status == "CANCELLED"
+    with SQLiteDatabase(path) as database:
+        assert database.paper_orders.status("run-1:AAPL") == "CANCELLED"
+
+
 def test_executor_submits_validated_bracket_to_alpaca():
     client = FakeClient()
     executor = IdempotentPaperExecutor(AlpacaPaperOrders(client))

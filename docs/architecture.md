@@ -115,6 +115,10 @@ Il rilascio dovrà includere Dockerfile e procedura di build riproducibile con d
 
 Stato di questo step: packaging `src/` e `.dockerignore` presenti. Dockerfile, comando applicativo, lock delle dipendenze e validazione container arriveranno con il primo flusso eseguibile. Nessuna immagine o distribuzione produzione è attestata da questo scaffolding.
 
+## Composizione paper — 2026-11-02
+
+`workflows.paper_runtime` collega trade cycle, adapter Alpaca e repository SQLite per ordini e decisioni. La factory Alpaca usa `paper=True`, non accetta override URL e rifiuta configurazioni diverse dall'endpoint paper. È una composizione invocabile, non ancora un runtime automatico provider→agenti; persistenza e riconciliazione sono verificate offline con client simulato.
+
 ## Rischio condiviso — 2026-11-02
 
 `RiskAnalyst` e `TradeCycle` usano la stessa policy provvisoria di dimensionamento ATR in `execution.risk.size_trade`, evitando una review su quantità fissa diversa dall'ordine. Il ciclo rivaluta il rischio prima dell'invio; se portfolio o prezzo cambiano, la decisione può cambiare. I parametri restano da validare in backtest. Il test offline attraversa review, ciclo, SQLite e dashboard HTTP con broker simulato: non prova un ordine Alpaca né una pipeline provider completa.
