@@ -40,6 +40,8 @@ class TradeCycle:
         entry_price: Decimal,
     ) -> TradeCycleResult:
         investment = state.to_investment_state()
+        if investment.research.proposed_direction != "long":
+            raise ValueError("paper trade cycle requires a long direction")
         evaluation = investment.research.evaluations[0]
         atr = evaluation.values.get("atr")
         if atr is None:

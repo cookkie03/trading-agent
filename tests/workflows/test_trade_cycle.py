@@ -1,5 +1,8 @@
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from decimal import Decimal
+
+import pytest
 
 from analysis.strategy_state import QuantitativeEvaluation, ResearchState, StrategyProfile
 from execution.paper import IdempotentPaperExecutor, Submission
@@ -52,6 +55,14 @@ def approved_state() -> ResearchState:
         risk_verdict="approved",
         risk_rationale="within limits",
     )
+
+
+def test_trade_cycle_does_not_buy_when_research_is_flat():
+    cycle = TradeCycle(IdempotentPaperExecutor(Gateway()))
+    state = replace(approved_state(), proposed_direction="flat")
+
+    with pytest.raises(ValueError, match="long"):
+        cycle.run(state, portfolio(), RiskLimits(), Decimal("100"))
 
 
 def portfolio() -> PortfolioRisk:
