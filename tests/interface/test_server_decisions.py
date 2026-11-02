@@ -7,7 +7,39 @@ from interface.server import DashboardServer
 from storage.sqlite import DecisionRecord, SQLiteDatabase
 
 
+def test_provider_cycle_rejects_data_outside_explicit_freshness_limit(tmp_path):
+    from dataclasses import replace
+    from datetime import timedelta
+
+    import pytest
+
+    from execution.risk import RiskLimits
+    from tests.data.test_ingestion import FakeProvider, make_bar
+    from tests.workflows.test_trade_cycle import approved_state, portfolio
+    from workflows.paper_runtime import run_provider_research_cycle
+
+    bar = make_bar()
+    bars = tuple(replace(bar, timestamp=bar.timestamp - timedelta(days=i)) for i in range(15))
+    with SQLiteDatabase(tmp_path / "stale.db") as database:
+        with pytest.raises(ValueError, match="stale"):
+            run_provider_research_cycle(
+                FakeProvider(bars),
+                None,
+                database,
+                approved_state(),
+                portfolio(),
+                RiskLimits(),
+                start=datetime(2026, 10, 1, tzinfo=UTC),
+                end=datetime(2026, 11, 1, tzinfo=UTC),
+                interval="1d",
+                as_of=datetime(2026, 11, 5, tzinfo=UTC),
+                max_age=timedelta(days=2),
+            )
+
+
 def test_provider_cycle_rejects_insufficient_atr_history(tmp_path):
+    from datetime import timedelta
+
     import pytest
 
     from execution.risk import RiskLimits
@@ -27,6 +59,8 @@ def test_provider_cycle_rejects_insufficient_atr_history(tmp_path):
                 start=datetime(2026, 10, 1, tzinfo=UTC),
                 end=datetime(2026, 11, 1, tzinfo=UTC),
                 interval="1d",
+                as_of=datetime(2026, 11, 1, tzinfo=UTC),
+                max_age=timedelta(days=3),
             )
 
 
@@ -56,6 +90,8 @@ def test_provider_bar_is_used_by_technical_desk_and_visible_over_http(tmp_path):
             start=datetime(2026, 10, 1, tzinfo=UTC),
             end=datetime(2026, 11, 1, tzinfo=UTC),
             interval="1d",
+            as_of=datetime(2026, 11, 1, tzinfo=UTC),
+            max_age=timedelta(days=3),
         )
         technical = next(
             opinion for opinion in result["desk_opinions"] if opinion.desk == "technical"

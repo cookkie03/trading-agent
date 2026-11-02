@@ -1,7 +1,7 @@
 """Compose the paper order cycle with durable local repositories."""
 
 from dataclasses import asdict, replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from alpaca.trading.client import TradingClient
 
@@ -58,9 +58,24 @@ def run_research_cycle(client, database, state, portfolio, limits, entry_price):
 
 
 def run_provider_research_cycle(
-    provider, client, database, state, portfolio, limits, *, start, end, interval
+    provider,
+    client,
+    database,
+    state,
+    portfolio,
+    limits,
+    *,
+    start,
+    end,
+    interval,
+    as_of: datetime,
+    max_age: timedelta,
 ):
     """Ingest provider bars and attach their latest close to technical research."""
+    if as_of.utcoffset() is None or max_age <= timedelta(0):
+        raise ValueError("as_of must be timezone-aware and max_age must be positive")
+    if end > as_of:
+        raise ValueError("market data interval cannot extend beyond as_of")
     ingest_ohlcv(provider, database, symbol=state.symbol, start=start, end=end, interval=interval)
     bars = database.market_data.list_between(state.symbol, interval, start, end)
     if not bars:
@@ -76,6 +91,8 @@ def run_provider_research_cycle(
     if not atr_values:
         raise ValueError("ATR requires at least 15 bars")
     bar = bars[-1]
+    if as_of - bar.timestamp > max_age:
+        raise ValueError("market data is stale")
     evaluation = QuantitativeEvaluation(
         name="atr",
         values={"atr": atr_values[-1]},
