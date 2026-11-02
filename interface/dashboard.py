@@ -14,6 +14,18 @@ from storage.sqlite import SQLiteDatabase
 
 
 @dataclass(frozen=True)
+class DecisionReadModel:
+    """Read-only summary of a persisted or computed investment decision."""
+
+    symbol: str
+    status: str
+    direction: str
+    conviction: str
+    observed_at: str
+    rationale: str
+
+
+@dataclass(frozen=True)
 class PortfolioReadModel:
     """Read model del portafoglio, senza operazioni di mutazione."""
 
@@ -35,6 +47,7 @@ class DashboardSnapshot:
     portfolio: PortfolioReadModel
     watchlist: list[dict[str, str]] = field(default_factory=list)
     events: list[dict[str, str]] = field(default_factory=list)
+    decisions: tuple[DecisionReadModel, ...] = ()
     modules: dict[str, str] = field(default_factory=dict)
 
     @classmethod
