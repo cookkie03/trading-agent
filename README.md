@@ -27,6 +27,10 @@ Il worker è idempotente: ripetere il comando non duplica gli indicatori già ma
 
 Le formule pure disponibili in `analysis/indicators.py` sono SMA, EMA, RSI Wilder, MACD, ATR Wilder e Pivot Points classici. Sono funzioni deterministiche testate, ma la pipeline di persistenza materializza attualmente solo SMA v1: l'estensione agli altri indicatori richiede la chiusura dei parametri MVP e delle relative versioni di formula.
 
+## Ricerca tecnica
+
+Il confronto datato con TradingAgents, Qlib, QuantLab e vectorbt è in [`docs/research/prior-art-benchmark.md`](docs/research/prior-art-benchmark.md). Le repository esterne sono riferimenti selettivi: non sostituiscono i contratti locali, la provenance SQLite o il replay canonico.
+
 ## Dashboard locale
 
 Avvia frontend React/Vite e backend Python read-only insieme dalla root del repository:
