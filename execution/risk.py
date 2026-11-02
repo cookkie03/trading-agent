@@ -33,6 +33,16 @@ class TradeIntent:
 
 
 @dataclass(frozen=True)
+class PositionSizing:
+    """Risk-based long position size derived from ATR and portfolio equity."""
+
+    quantity: Decimal
+    stop_price: Decimal
+    risk_budget: Decimal
+    notional: Decimal
+
+
+@dataclass(frozen=True)
 class PortfolioRisk:
     equity: Decimal
     cash: Decimal
@@ -64,6 +74,42 @@ class RiskDecision:
     approved: bool
     quantity: Decimal
     reasons: tuple[str, ...]
+
+
+def calculate_position_size(
+    *,
+    equity: Decimal,
+    risk_fraction: Decimal,
+    conviction_multiplier: Decimal,
+    atr: Decimal,
+    stop_atr_multiple: Decimal,
+    entry_price: Decimal,
+    max_symbol_fraction: Decimal,
+) -> PositionSizing:
+    """Calculate a capped long-only quantity from a fixed-fractional risk budget."""
+    values = {
+        "equity": equity,
+        "risk_fraction": risk_fraction,
+        "conviction_multiplier": conviction_multiplier,
+        "atr": atr,
+        "stop_atr_multiple": stop_atr_multiple,
+        "entry_price": entry_price,
+        "max_symbol_fraction": max_symbol_fraction,
+    }
+    if any(value <= 0 for value in values.values()):
+        invalid = next(name for name, value in values.items() if value <= 0)
+        raise ValueError(f"{invalid} must be positive")
+    risk_budget = equity * risk_fraction * conviction_multiplier
+    stop_distance = atr * stop_atr_multiple
+    risk_quantity = risk_budget / stop_distance
+    capped_notional = min(risk_quantity * entry_price, equity * max_symbol_fraction)
+    quantity = capped_notional / entry_price
+    return PositionSizing(
+        quantity=quantity,
+        stop_price=entry_price - stop_distance,
+        risk_budget=risk_budget,
+        notional=capped_notional,
+    )
 
 
 def evaluate_trade(
