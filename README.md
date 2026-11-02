@@ -2,6 +2,10 @@
 
 Progetto Python per un sistema multi-agente di analisi e gestione di un portafoglio azionario. Gli agenti elaborano informazioni e proposte; calcoli, controlli di rischio ed esecuzione restano deterministicamente verificabili.
 
+## Stato verificato al 2026-11-02
+
+Nel workspace attuale, inclusi test locali non tracciati preesistenti, la suite riporta **144 passed, 1 skipped, 2 warning**. Il test Alpaca paper saltato richiede `--alpaca-paper`. Lint e build frontend sono passati. Il grafo PM resta intenzionalmente `pending` e non è un flusso E2E completo.
+
 ## Configurazione
 
 `config.Settings` centralizza i parametri runtime e legge `.env` quando il comando lo abilita. I segreti Alpaca devono essere forniti insieme; una configurazione parziale viene rifiutata. I default locali sono `data/trading-agent.db`, `localhost` e porta `8000`.

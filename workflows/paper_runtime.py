@@ -55,7 +55,7 @@ def run_research_cycle(
         rationale = (
             "; ".join(review.decision.reasons)
             if result["decision"] == "rejected"
-            else "Desk evidence or technical review incomplete"
+            else "PM review pending; technical review or desk evidence may also be incomplete"
         )
         database.decisions.save(
             DecisionRecord(

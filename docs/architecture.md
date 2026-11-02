@@ -117,7 +117,7 @@ Stato di questo step: packaging `src/` e `.dockerignore` presenti. Dockerfile, c
 
 ## Market proxy e gate PM — 2026-11-02
 
-Il desk market può ricevere una barra di un proxy indipendente, acquisita tramite il provider e con fonte e timestamp. Una singola quotazione non costituisce analisi macro; non viene persistita in questa slice. Il grafo mantiene il PM `pending` anche se tutti i desk hanno qualche evidenza: la presenza di dati non è una sintesi o un'autorizzazione a fare trading. Il percorso approvato resta intenzionalmente bloccato fino a una vera review PM.
+Il desk market può ricevere una barra di un proxy indipendente, acquisita tramite il provider e con fonte e timestamp. Una singola quotazione non costituisce analisi macro; non viene persistita in questa slice. Il grafo mantiene il PM `pending` anche se tutti i desk hanno qualche evidenza: la presenza di dati non è una sintesi o un'autorizzazione a fare trading. Il percorso approvato resta intenzionalmente bloccato fino a una vera review PM. L'audit delle decisioni pending indica esplicitamente che manca la review PM; eventuali lacune dei desk e della review tecnica sono indicate come possibili, non accertate.
 
 ## Fundamentals correnti — 2026-11-02
 

@@ -81,6 +81,20 @@ def test_paper_runtime_rejects_live_endpoint_before_client_creation(tmp_path):
             alpaca_paper_runtime(settings, database)
 
 
+def test_research_pipeline_records_pending_without_claiming_missing_evidence(tmp_path):
+    from interface.dashboard import SQLiteDashboardReadModel
+    from storage.sqlite import SQLiteDatabase
+    from workflows.paper_runtime import run_research_cycle
+
+    with SQLiteDatabase(tmp_path / "reason.db") as database:
+        result = run_research_cycle(
+            FakeClient(), database, approved_state(), portfolio(), RiskLimits(), Decimal("100")
+        )
+        assert result["decision"] == "pending"
+    decisions = SQLiteDashboardReadModel(tmp_path / "reason.db").snapshot().decisions
+    assert "PM" in decisions[0].rationale
+
+
 def test_research_pipeline_does_not_submit_when_desk_evidence_is_pending(tmp_path):
     from storage.sqlite import SQLiteDatabase
     from workflows.paper_runtime import run_research_cycle
