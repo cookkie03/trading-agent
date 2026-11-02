@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from analysis.strategy_state import ResearchState
@@ -15,6 +16,7 @@ from execution.risk import (
     calculate_position_size,
     evaluate_trade,
 )
+from storage.sqlite import DecisionRecord
 
 
 @dataclass(frozen=True)
@@ -26,8 +28,9 @@ class TradeCycleResult:
 class TradeCycle:
     """Keep orchestration thin while preserving deep domain seams."""
 
-    def __init__(self, executor: IdempotentPaperExecutor) -> None:
+    def __init__(self, executor: IdempotentPaperExecutor, decisions=None) -> None:
         self._executor = executor
+        self._decisions = decisions
 
     def run(
         self,
@@ -59,10 +62,30 @@ class TradeCycle:
         )
         risk = evaluate_trade(request_to_intent(request), portfolio, limits)
         if not risk.approved:
+            self._save_decision(state, risk, None)
             return TradeCycleResult(risk=risk, submission=None)
-        return TradeCycleResult(
-            risk=risk,
-            submission=self._executor.submit(request, risk),
+        submission = self._executor.submit(request, risk)
+        self._save_decision(state, risk, submission)
+        return TradeCycleResult(risk=risk, submission=submission)
+
+    def _save_decision(self, state, risk: RiskDecision, submission: Submission | None) -> None:
+        if self._decisions is None:
+            return
+        self._decisions.save(
+            DecisionRecord(
+                client_order_id=f"{state.run_id}:{state.symbol}",
+                symbol=state.symbol,
+                status="risk_approved" if risk.approved else "risk_rejected",
+                direction=state.proposed_direction,
+                conviction=state.conviction,
+                rationale=(
+                    "paper order submitted"
+                    if submission is not None
+                    else "; ".join(risk.reasons)
+                ),
+                observed_at=datetime.now(UTC),
+                payload=state.run_id,
+            )
         )
 
 
