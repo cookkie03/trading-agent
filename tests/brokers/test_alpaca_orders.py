@@ -2,6 +2,8 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 from brokers.alpaca_orders import AlpacaPaperOrders, PaperOrderRequest
+from execution.paper import IdempotentPaperExecutor, OrderRequest
+from execution.risk import RiskDecision
 
 
 class FakeClient:
@@ -35,3 +37,21 @@ def test_paper_orders_submit_and_cancel_through_injected_client():
     assert submitted.broker_order_id == "broker-1"
     assert client.submitted[0].take_profit.limit_price == 110.0
     assert client.cancelled == ["broker-1"]
+
+
+def test_executor_submits_validated_bracket_to_alpaca():
+    client = FakeClient()
+    executor = IdempotentPaperExecutor(AlpacaPaperOrders(client))
+    order = OrderRequest(
+        "run-1:AAPL", "AAPL", Decimal("10"), Decimal("100"), Decimal("110"), Decimal("95")
+    )
+    decision = RiskDecision(approved=True, quantity=Decimal("10"), reasons=())
+
+    result = executor.submit(order, decision)
+
+    assert result.broker_order_id == "broker-1"
+    assert client.submitted[0].client_order_id == order.client_order_id
+    assert client.submitted[0].take_profit.limit_price == 110.0
+    assert len(client.submitted) == 1
+    assert executor.submit(order, decision) == result
+    assert len(client.submitted) == 1
