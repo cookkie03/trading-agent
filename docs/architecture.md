@@ -34,6 +34,7 @@ trading-agent/
 ├── .env.example                   # nomi dei segreti, senza valori reali
 ├── agents/ · analysis/ · brokers/ · data/
 ├── execution/ · interface/ · storage/ · tools/ · workflows/
+│   ├── execution/risk.py          # veto deterministico prima del broker
 │   ├── brokers/                   # conto, posizioni, ordini; broker intercambiabili
 │   │   ├── interface.py           # contratto Broker, indipendente da SDK
 │   │   ├── models.py              # dati ed errori normalizzati del broker
