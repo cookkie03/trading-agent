@@ -57,6 +57,17 @@ def approved_state() -> ResearchState:
     )
 
 
+def test_trade_cycle_finds_atr_among_quantitative_evaluations():
+    state = approved_state()
+    other = replace(state.evaluations[0], name="momentum", values={"momentum": Decimal("1")})
+    state = replace(state, evaluations=(other, *state.evaluations))
+    cycle = TradeCycle(IdempotentPaperExecutor(Gateway()))
+
+    result = cycle.run(state, portfolio(), RiskLimits(), Decimal("100"))
+
+    assert result.submission is not None
+
+
 def test_trade_cycle_does_not_buy_when_research_is_flat():
     cycle = TradeCycle(IdempotentPaperExecutor(Gateway()))
     state = replace(approved_state(), proposed_direction="flat")

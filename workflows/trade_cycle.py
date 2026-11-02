@@ -42,8 +42,11 @@ class TradeCycle:
         investment = state.to_investment_state()
         if investment.research.proposed_direction != "long":
             raise ValueError("paper trade cycle requires a long direction")
-        evaluation = investment.research.evaluations[0]
-        atr = evaluation.values.get("atr")
+        atr = next(
+            (evaluation.values["atr"] for evaluation in investment.research.evaluations
+             if "atr" in evaluation.values),
+            None,
+        )
         if atr is None:
             raise ValueError("approved state must include atr evaluation")
         sizing = calculate_position_size(
