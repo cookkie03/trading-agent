@@ -626,6 +626,8 @@ class PaperOrderRepository:
         self._connection = connection
 
     def reserve(self, order):
+        if self._connection.in_transaction:
+            raise RuntimeError("paper order reservation cannot use an open transaction")
         cursor = self._connection.execute(
             "INSERT OR IGNORE INTO paper_orders VALUES (?, ?, ?, ?, ?, ?, NULL)",
             (order.client_order_id, order.symbol, str(order.quantity), str(order.limit_price),

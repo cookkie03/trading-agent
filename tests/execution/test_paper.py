@@ -30,6 +30,16 @@ def request(client_order_id="run-1:AAPL") -> OrderRequest:
     )
 
 
+def test_submission_is_rejected_inside_database_transaction(tmp_path):
+    from storage.sqlite import SQLiteDatabase
+
+    gateway = FakePaperGateway()
+    with SQLiteDatabase(tmp_path / "orders.db") as db:
+        with db.transaction(), pytest.raises(RuntimeError, match="transaction"):
+            IdempotentPaperExecutor(gateway, db.paper_orders).submit(request(), approved())
+    assert gateway.requests == []
+
+
 def test_uncertain_submission_is_not_retried_after_restart(tmp_path):
     from storage.sqlite import SQLiteDatabase
 
