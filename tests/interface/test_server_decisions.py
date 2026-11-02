@@ -7,6 +7,35 @@ from interface.server import DashboardServer
 from storage.sqlite import DecisionRecord, SQLiteDatabase
 
 
+def test_trade_cycle_decision_survives_restart_and_is_visible_over_http(tmp_path):
+    from decimal import Decimal
+
+    from execution.paper import IdempotentPaperExecutor
+    from execution.risk import RiskLimits
+    from tests.workflows.test_trade_cycle import Gateway, approved_state, portfolio
+    from workflows.trade_cycle import TradeCycle
+
+    path = tmp_path / "cycle.db"
+    with SQLiteDatabase(path) as database:
+        executor = IdempotentPaperExecutor(Gateway(), database.paper_orders)
+        result = TradeCycle(executor, database.decisions).run(
+            approved_state(), portfolio(), RiskLimits(), Decimal("100")
+        )
+        assert result.submission.broker_order_id == "paper-1"
+    server = DashboardServer(SQLiteDashboardReadModel(path), port=0)
+    server.start()
+    try:
+        with urlopen(server.url("/api/dashboard")) as response:
+            decision = json.load(response)["decisions"][0]
+    finally:
+        server.close()
+    assert decision["symbol"] == "AAPL"
+    assert decision["status"] == "risk_approved"
+    assert decision["direction"] == "long"
+    assert decision["conviction"] == "buy"
+    assert decision["rationale"] == "paper order submitted"
+
+
 def test_http_dashboard_exposes_persisted_decision_queue(tmp_path):
     database = SQLiteDatabase(tmp_path / "server.db")
     database.decisions.save(
