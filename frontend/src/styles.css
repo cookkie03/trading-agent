@@ -2,6 +2,13 @@
 
 :root { font-family: Manrope, sans-serif; color: #e9e6df; background: #101312; font-synthesis: none; }
 * { box-sizing: border-box; }
+.portfolio-details { min-width: 0; }
+.portfolio-details h3 { margin: 32px 0 14px; font-size: 15px; }
+.portfolio-details .table-wrap { max-width: 100%; overflow-x: auto; }
+.portfolio-details table { width: 100%; min-width: 720px; border-collapse: collapse; text-align: left; font-size: 13px; font-variant-numeric: tabular-nums; }
+.portfolio-details th, .portfolio-details td { padding: 12px 16px 12px 0; border-bottom: 1px solid #2a302d; white-space: nowrap; }
+.portfolio-details th { color: #aeb4ae; font-weight: 500; }
+.portfolio-details .table-wrap:focus-visible { outline: 2px solid #cf8e51; outline-offset: 3px; }
 body { margin: 0; min-width: 320px; background: #101312; }
 main { max-width: 1180px; margin: auto; padding: 0 40px 42px; }
 .topbar { height: 76px; border-bottom: 1px solid #2a302d; display: flex; align-items: center; justify-content: space-between; }
