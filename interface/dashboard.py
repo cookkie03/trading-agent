@@ -165,8 +165,6 @@ class SQLiteDashboardReadModel:
             bars = self._latest_bars(database)
             portfolio = self._portfolio(database)
             decisions = self._decisions(database)
-        if not bars and portfolio is None and not decisions:
-            return DashboardSnapshot.empty()
         latest_bar = max(bars, key=lambda bar: bar.collected_at) if bars else None
         portfolio_observed_at, portfolio_data = portfolio or (None, None)
         latest_decision = (
@@ -182,11 +180,12 @@ class SQLiteDashboardReadModel:
                 )
                 if value is not None
             ),
+            default=None,
         )
         return DashboardSnapshot(
-            observed_at=observed_at,
+            observed_at=observed_at or datetime.now(UTC),
             source=("alpaca" if portfolio_data else latest_bar.source if latest_bar else "sqlite"),
-            freshness=observed_at.isoformat(),
+            freshness=observed_at.isoformat() if observed_at else "not available",
             portfolio=portfolio_data
             or PortfolioReadModel(
                 available=False,
@@ -216,8 +215,8 @@ class SQLiteDashboardReadModel:
                 for decision in decisions
             ),
             modules={
-                "market_data": "available",
-                "decisions": "available" if decisions else "unavailable",
+                "market_data": "available" if bars else "unavailable",
+                "decisions": "available",
                 "triggers": "unavailable",
                 "benchmark": "post-mvp",
                 "system_run": "unavailable",

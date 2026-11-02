@@ -24,6 +24,19 @@ def test_empty_read_model_explains_unavailable_data() -> None:
     assert snapshot.modules["decisions"] == "unavailable"
 
 
+def test_existing_empty_database_distinguishes_empty_from_unavailable(tmp_path) -> None:
+    path = tmp_path / "empty.db"
+    with SQLiteDatabase(path):
+        pass
+
+    snapshot = SQLiteDashboardReadModel(path).snapshot()
+
+    assert snapshot.source == "sqlite"
+    assert snapshot.decisions == ()
+    assert snapshot.modules["decisions"] == "available"
+    assert snapshot.modules["market_data"] == "unavailable"
+
+
 def test_empty_control_surface_excludes_mutation_and_secrets() -> None:
     snapshot = EmptyControlSurfaceReadModel().snapshot()
 
