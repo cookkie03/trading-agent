@@ -58,6 +58,7 @@ class TradeCycle:
             symbol=state.symbol,
             quantity=sizing.quantity,
             limit_price=entry_price,
+            take_profit_price=entry_price + (atr * Decimal("3")),
             stop_price=sizing.stop_price,
         )
         risk = evaluate_trade(request_to_intent(request), portfolio, limits)

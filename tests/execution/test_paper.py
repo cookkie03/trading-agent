@@ -25,6 +25,7 @@ def request(client_order_id="run-1:AAPL") -> OrderRequest:
         symbol="AAPL",
         quantity=Decimal("10"),
         limit_price=Decimal("100"),
+        take_profit_price=Decimal("110"),
         stop_price=Decimal("95"),
     )
 

@@ -15,6 +15,7 @@ class OrderRequest:
     symbol: str
     quantity: Decimal
     limit_price: Decimal
+    take_profit_price: Decimal
     stop_price: Decimal
 
     def __post_init__(self) -> None:
@@ -24,6 +25,8 @@ class OrderRequest:
             raise ValueError("order values must be positive")
         if self.stop_price >= self.limit_price:
             raise ValueError("stop_price must be below limit_price")
+        if self.take_profit_price <= self.limit_price:
+            raise ValueError("take_profit_price must be above limit_price")
 
     def different(self, **changes: object) -> OrderRequest:
         return replace(self, **changes)
