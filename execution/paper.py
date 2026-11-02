@@ -46,8 +46,9 @@ class PaperGateway(Protocol):
 class IdempotentPaperExecutor:
     """Submit only risk-approved orders and remember client IDs."""
 
-    def __init__(self, gateway: PaperGateway) -> None:
+    def __init__(self, gateway: PaperGateway, orders=None) -> None:
         self._gateway = gateway
+        self._orders = orders
         self._requests: dict[str, OrderRequest] = {}
         self._audit: list[Submission] = []
 
@@ -65,7 +66,15 @@ class IdempotentPaperExecutor:
             if previous != request:
                 raise ValueError("client order ID was used for a different order")
             return self._submission_for(request.client_order_id)
+        if self._orders is not None:
+            created, broker_order_id = self._orders.reserve(request)
+            if not created:
+                if broker_order_id is None:
+                    raise RuntimeError("paper order requires broker reconciliation before retry")
+                return Submission(request.client_order_id, broker_order_id)
         submission = self._gateway.submit(request)
+        if self._orders is not None:
+            self._orders.complete(request.client_order_id, submission.broker_order_id)
         self._requests[request.client_order_id] = request
         self._audit.append(submission)
         return submission

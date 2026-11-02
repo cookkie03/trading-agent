@@ -148,6 +148,20 @@ _SCHEMA_MIGRATIONS: tuple[tuple[str, str], ...] = (
         CREATE INDEX decisions_latest ON decisions (observed_at DESC, id DESC);
         """,
     ),
+    (
+        "006_create_paper_orders",
+        """
+        CREATE TABLE paper_orders (
+            client_order_id TEXT PRIMARY KEY,
+            symbol TEXT NOT NULL,
+            quantity TEXT NOT NULL,
+            limit_price TEXT NOT NULL,
+            take_profit_price TEXT NOT NULL,
+            stop_price TEXT NOT NULL,
+            broker_order_id TEXT
+        );
+        """,
+    ),
 )
 
 
@@ -605,6 +619,34 @@ class OutboxRepository:
         )
 
 
+class PaperOrderRepository:
+    """Persist attempts before submission; uncertain attempts require reconciliation."""
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def reserve(self, order):
+        cursor = self._connection.execute(
+            "INSERT OR IGNORE INTO paper_orders VALUES (?, ?, ?, ?, ?, ?, NULL)",
+            (order.client_order_id, order.symbol, str(order.quantity), str(order.limit_price),
+             str(order.take_profit_price), str(order.stop_price)),
+        )
+        row = self._connection.execute(
+            "SELECT * FROM paper_orders WHERE client_order_id = ?", (order.client_order_id,)
+        ).fetchone()
+        fields = (row[1], Decimal(row[2]), Decimal(row[3]), Decimal(row[4]), Decimal(row[5]))
+        if fields != (order.symbol, order.quantity, order.limit_price,
+                      order.take_profit_price, order.stop_price):
+            raise ValueError("client order ID was used for a different order")
+        return cursor.rowcount == 1, row[6]
+
+    def complete(self, client_order_id: str, broker_order_id: str) -> None:
+        self._connection.execute(
+            "UPDATE paper_orders SET broker_order_id = ? WHERE client_order_id = ?",
+            (broker_order_id, client_order_id),
+        )
+
+
 class DecisionRepository:
     """Idempotent audit log for research/risk decisions."""
 
@@ -712,6 +754,7 @@ class SQLiteDatabase:
         self.outbox = OutboxRepository(self._connection)
         self.broker_snapshots = BrokerSnapshotRepository(self._connection)
         self.decisions = DecisionRepository(self._connection)
+        self.paper_orders = PaperOrderRepository(self._connection)
 
     @property
     def schema_version(self) -> int:

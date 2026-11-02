@@ -30,6 +30,39 @@ def request(client_order_id="run-1:AAPL") -> OrderRequest:
     )
 
 
+def test_uncertain_submission_is_not_retried_after_restart(tmp_path):
+    from storage.sqlite import SQLiteDatabase
+
+    class UncertainGateway(FakePaperGateway):
+        def submit(self, request):
+            self.requests.append(request)
+            raise TimeoutError("broker response lost")
+
+    gateway = UncertainGateway()
+    path = tmp_path / "orders.db"
+    with SQLiteDatabase(path) as db:
+        with pytest.raises(TimeoutError):
+            IdempotentPaperExecutor(gateway, db.paper_orders).submit(request(), approved())
+    with SQLiteDatabase(path) as db:
+        with pytest.raises(RuntimeError, match="reconciliation"):
+            IdempotentPaperExecutor(gateway, db.paper_orders).submit(request(), approved())
+    assert len(gateway.requests) == 1
+
+
+def test_submitted_order_is_not_sent_again_after_restart(tmp_path):
+    from storage.sqlite import SQLiteDatabase
+
+    gateway = FakePaperGateway()
+    path = tmp_path / "orders.db"
+    with SQLiteDatabase(path) as db:
+        first = IdempotentPaperExecutor(gateway, db.paper_orders).submit(request(), approved())
+    with SQLiteDatabase(path) as db:
+        second = IdempotentPaperExecutor(gateway, db.paper_orders).submit(request(), approved())
+
+    assert second == first
+    assert len(gateway.requests) == 1
+
+
 def test_paper_executor_submits_approved_order_and_records_audit():
     gateway = FakePaperGateway()
     executor = IdempotentPaperExecutor(gateway)
