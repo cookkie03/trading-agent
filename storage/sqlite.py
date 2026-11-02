@@ -13,6 +13,19 @@ from pathlib import Path
 from types import TracebackType
 from typing import Self
 
+
+@dataclass(frozen=True)
+class DecisionRecord:
+    client_order_id: str
+    symbol: str
+    status: str
+    direction: str
+    conviction: str
+    rationale: str
+    observed_at: datetime
+    payload: str
+
+
 _SCHEMA_MIGRATIONS: tuple[tuple[str, str], ...] = (
     (
         "001_create_observations",
@@ -115,6 +128,24 @@ _SCHEMA_MIGRATIONS: tuple[tuple[str, str], ...] = (
         );
         CREATE INDEX outbox_pending_lookup
             ON outbox_events (processed_at, available_at, claimed_at, id);
+        """,
+    ),
+    (
+        "005_create_decisions",
+        """
+        CREATE TABLE decisions (
+            id INTEGER PRIMARY KEY,
+            client_order_id TEXT NOT NULL UNIQUE,
+            symbol TEXT NOT NULL,
+            status TEXT NOT NULL,
+            direction TEXT NOT NULL,
+            conviction TEXT NOT NULL,
+            rationale TEXT NOT NULL,
+            observed_at TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX decisions_latest ON decisions (observed_at DESC, id DESC);
         """,
     ),
 )
@@ -574,6 +605,58 @@ class OutboxRepository:
         )
 
 
+class DecisionRepository:
+    """Idempotent audit log for research/risk decisions."""
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self._connection = connection
+
+    def save(self, decision: DecisionRecord) -> bool:
+        cursor = self._connection.execute(
+            """
+            INSERT OR IGNORE INTO decisions (
+                client_order_id, symbol, status, direction, conviction,
+                rationale, observed_at, payload, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                decision.client_order_id,
+                decision.symbol,
+                decision.status,
+                decision.direction,
+                decision.conviction,
+                decision.rationale,
+                _encode_datetime(decision.observed_at),
+                decision.payload,
+                _encode_datetime(datetime.now(UTC)),
+            ),
+        )
+        return cursor.rowcount == 1
+
+    def latest(self, limit: int = 100) -> tuple[DecisionRecord, ...]:
+        rows = self._connection.execute(
+            """
+            SELECT client_order_id, symbol, status, direction, conviction,
+                   rationale, observed_at, payload
+            FROM decisions ORDER BY observed_at DESC, id DESC LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return tuple(
+            DecisionRecord(
+                client_order_id=row[0],
+                symbol=row[1],
+                status=row[2],
+                direction=row[3],
+                conviction=row[4],
+                rationale=row[5],
+                observed_at=_decode_datetime(row[6]),
+                payload=row[7],
+            )
+            for row in rows
+        )
+
+
 class BrokerSnapshotRepository:
     """Persistenza storica e idempotente degli snapshot broker."""
 
@@ -628,6 +711,7 @@ class SQLiteDatabase:
         self.indicators = IndicatorRepository(self._connection)
         self.outbox = OutboxRepository(self._connection)
         self.broker_snapshots = BrokerSnapshotRepository(self._connection)
+        self.decisions = DecisionRepository(self._connection)
 
     @property
     def schema_version(self) -> int:

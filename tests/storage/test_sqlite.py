@@ -62,12 +62,13 @@ def test_transaction_rolls_back_all_observations_on_error():
 def test_schema_migration_is_versioned():
     database = SQLiteDatabase(":memory:")
 
-    assert database.schema_version == 4
+    assert database.schema_version == 5
     assert database.migration_names == (
         "001_create_observations",
         "002_create_price_bars",
         "003_create_broker_snapshots",
         "004_create_indicator_values_and_outbox",
+        "005_create_decisions",
     )
     database.close()
 
