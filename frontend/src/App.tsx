@@ -27,6 +27,14 @@ type Snapshot = {
   watchlist: Array<Record<string, string>>
   events: Array<Record<string, string>>
   modules: Record<string, string>
+  decisions: Array<{
+    symbol: string
+    status: string
+    direction: string
+    conviction: string
+    observed_at: string
+    rationale: string
+  }>
 }
 
 const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
@@ -116,6 +124,7 @@ export function App() {
       </section>
       <section className="split-grid">
         <article className="panel"><div className="section-head"><span>Watchlist</span><span className="muted">universe</span></div>{snapshot?.watchlist.length ? <p>{snapshot.watchlist.length} symbols</p> : <EmptyPanel title="No watchlist data" reason="The persistent read model will provide symbols and their last analysis." />}</article>
+        <article className="panel"><div className="section-head"><span>Decision queue</span><span className="muted">read-only</span></div>{snapshot?.decisions.length ? <ul className="decision-list">{snapshot.decisions.map((decision) => <li key={`${decision.symbol}-${decision.observed_at}`}><div><strong>{decision.symbol}</strong><span>{decision.rationale}</span></div><StatusPill tone={decision.status === 'risk_approved' ? 'good' : 'quiet'}>{decision.status.replace('_', ' ')}</StatusPill></li>)}</ul> : <EmptyPanel title="No decisions available" reason="Research and risk state are not connected to this read model yet." />}</article>
         <article className="panel"><div className="section-head"><span>System map</span><span className="muted">capabilities</span></div><ul className="capabilities">{Object.entries(snapshot?.modules ?? {portfolio: 'loading', decisions: 'loading', benchmark: 'loading'}).map(([name, state]) => <li key={name}><span>{name.replace('_', ' ')}</span><StatusPill tone={state === 'unavailable' || state === 'post-mvp' ? 'quiet' : 'good'}>{state}</StatusPill></li>)}</ul></article>
       </section>
       <section className="section-grid">
