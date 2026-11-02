@@ -70,6 +70,7 @@ def run_provider_research_cycle(
     interval,
     as_of: datetime,
     max_age: timedelta,
+    expected_timestamps: tuple[datetime, ...],
 ):
     """Ingest provider bars and attach their latest close to technical research."""
     if as_of.utcoffset() is None or max_age <= timedelta(0):
@@ -80,6 +81,13 @@ def run_provider_research_cycle(
     bars = database.market_data.list_between(state.symbol, interval, start, end)
     if not bars:
         raise ValueError("no market bar available in requested interval")
+    if not expected_timestamps or any(
+        timestamp.utcoffset() is None or not start <= timestamp < end
+        for timestamp in expected_timestamps
+    ):
+        raise ValueError("expected market timestamps must be timezone-aware and in range")
+    if set(expected_timestamps) - {bar.timestamp for bar in bars}:
+        raise ValueError("missing market bars in expected schedule")
     if len({bar.source for bar in bars}) != 1 or len({bar.timestamp for bar in bars}) != len(bars):
         raise ValueError("ATR requires a single unambiguous market data source")
     atr_values = average_true_range(

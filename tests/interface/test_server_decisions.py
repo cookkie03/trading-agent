@@ -7,6 +7,38 @@ from interface.server import DashboardServer
 from storage.sqlite import DecisionRecord, SQLiteDatabase
 
 
+def test_provider_cycle_rejects_missing_expected_market_bar(tmp_path):
+    from dataclasses import replace
+    from datetime import timedelta
+
+    import pytest
+
+    from execution.risk import RiskLimits
+    from tests.data.test_ingestion import FakeProvider, make_bar
+    from tests.workflows.test_trade_cycle import approved_state, portfolio
+    from workflows.paper_runtime import run_provider_research_cycle
+
+    bar = make_bar()
+    timestamps = tuple(bar.timestamp - timedelta(days=i) for i in range(16))
+    bars = tuple(replace(bar, timestamp=t) for t in timestamps[:-1])
+    with SQLiteDatabase(tmp_path / "missing.db") as database:
+        with pytest.raises(ValueError, match="missing market bars"):
+            run_provider_research_cycle(
+                FakeProvider(bars),
+                None,
+                database,
+                approved_state(),
+                portfolio(),
+                RiskLimits(),
+                start=datetime(2026, 10, 1, tzinfo=UTC),
+                end=datetime(2026, 11, 1, tzinfo=UTC),
+                interval="1d",
+                as_of=datetime(2026, 11, 1, tzinfo=UTC),
+                max_age=timedelta(days=3),
+                expected_timestamps=timestamps,
+            )
+
+
 def test_provider_cycle_rejects_data_outside_explicit_freshness_limit(tmp_path):
     from dataclasses import replace
     from datetime import timedelta
@@ -34,6 +66,7 @@ def test_provider_cycle_rejects_data_outside_explicit_freshness_limit(tmp_path):
                 interval="1d",
                 as_of=datetime(2026, 11, 5, tzinfo=UTC),
                 max_age=timedelta(days=2),
+                expected_timestamps=tuple(bar.timestamp for bar in bars),
             )
 
 
@@ -61,6 +94,7 @@ def test_provider_cycle_rejects_insufficient_atr_history(tmp_path):
                 interval="1d",
                 as_of=datetime(2026, 11, 1, tzinfo=UTC),
                 max_age=timedelta(days=3),
+                expected_timestamps=(make_bar().timestamp,),
             )
 
 
@@ -92,6 +126,7 @@ def test_provider_bar_is_used_by_technical_desk_and_visible_over_http(tmp_path):
             interval="1d",
             as_of=datetime(2026, 11, 1, tzinfo=UTC),
             max_age=timedelta(days=3),
+            expected_timestamps=tuple(bar.timestamp for bar in bars),
         )
         technical = next(
             opinion for opinion in result["desk_opinions"] if opinion.desk == "technical"
