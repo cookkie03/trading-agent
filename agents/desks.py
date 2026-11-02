@@ -52,7 +52,11 @@ def run_desks(context: DeskContext) -> tuple[DeskOpinion, ...]:
             desk="technical",
             view=context.research.technical_view,
             rationale="Technical view is supplied by the normalized quantitative context.",
-            evidence=("atr", "quantitative evaluation"),
+            evidence=tuple(
+                f"{item.name} | {item.source} | {item.formula_version} | "
+                f"{item.observed_at.isoformat()}"
+                for item in context.research.evaluations
+            ),
         ),
         DeskOpinion(
             desk="fundamentals",

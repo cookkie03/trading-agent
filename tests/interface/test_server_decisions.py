@@ -7,6 +7,22 @@ from interface.server import DashboardServer
 from storage.sqlite import DecisionRecord, SQLiteDatabase
 
 
+def test_technical_desk_reports_actual_evaluation_provenance():
+    from decimal import Decimal
+
+    from agents.desks import DeskContext, run_desks
+    from tests.workflows.test_trade_cycle import approved_state
+
+    state = approved_state()
+    opinions = run_desks(DeskContext(state.symbol, state.as_of, Decimal("100"), state))
+    technical = next(opinion for opinion in opinions if opinion.desk == "technical")
+    assert any(
+        "sqlite:price_bars" in evidence and "atr-wilder-v1" in evidence
+        for evidence in technical.evidence
+    )
+    assert "atr" in technical.evidence[0]
+
+
 def test_market_desk_receives_independent_market_proxy_with_provenance():
     from dataclasses import replace
     from decimal import Decimal
