@@ -3,7 +3,9 @@ from types import SimpleNamespace
 
 from brokers.alpaca_orders import AlpacaPaperOrders, PaperOrderRequest
 from execution.paper import IdempotentPaperExecutor, OrderRequest
-from execution.risk import RiskDecision
+from execution.risk import RiskDecision, RiskLimits
+from tests.workflows.test_trade_cycle import approved_state, portfolio
+from workflows.trade_cycle import TradeCycle
 
 
 class FakeClient:
@@ -37,6 +39,18 @@ def test_paper_orders_submit_and_cancel_through_injected_client():
     assert submitted.broker_order_id == "broker-1"
     assert client.submitted[0].take_profit.limit_price == 110.0
     assert client.cancelled == ["broker-1"]
+
+
+def test_trade_cycle_submits_approved_paper_bracket_to_alpaca():
+    client = FakeClient()
+    cycle = TradeCycle(IdempotentPaperExecutor(AlpacaPaperOrders(client)))
+
+    result = cycle.run(approved_state(), portfolio(), RiskLimits(), Decimal("100"))
+
+    assert result.submission.broker_order_id == "broker-1"
+    assert client.submitted[0].client_order_id == "run-1:AAPL"
+    assert client.submitted[0].take_profit.limit_price == 106.0
+    assert client.submitted[0].stop_loss.stop_price == 96.0
 
 
 def test_executor_submits_validated_bracket_to_alpaca():
