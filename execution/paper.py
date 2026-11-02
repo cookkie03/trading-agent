@@ -36,14 +36,19 @@ class OrderRequest:
 class Submission:
     client_order_id: str
     broker_order_id: str
+    status: str = "SUBMITTED"
+
+    def __post_init__(self) -> None:
+        if not self.client_order_id.strip() or not self.broker_order_id.strip():
+            raise ValueError("invalid broker order identity")
+        if self.status not in {"SUBMITTED", "FILLED", "REJECTED", "CANCELLED"}:
+            raise ValueError("invalid paper order status")
 
 
 class PaperGateway(Protocol):
-    def submit(self, request: OrderRequest) -> Submission:
-        ...
+    def submit(self, request: OrderRequest) -> Submission: ...
 
-    def find_by_client_order_id(self, client_order_id: str) -> Submission:
-        ...
+    def find_by_client_order_id(self, client_order_id: str) -> Submission: ...
 
 
 class IdempotentPaperExecutor:
@@ -65,7 +70,7 @@ class IdempotentPaperExecutor:
         if request.quantity > decision.quantity:
             raise ValueError("order quantity exceeds risk-approved quantity")
         previous = self._requests.get(request.client_order_id)
-        if previous is not None:
+        if previous is not None and self._orders is None:
             if previous != request:
                 raise ValueError("client order ID was used for a different order")
             return self._submission_for(request.client_order_id)
@@ -74,10 +79,18 @@ class IdempotentPaperExecutor:
             if not created:
                 if broker_order_id is None:
                     raise RuntimeError("paper order requires broker reconciliation before retry")
-                return Submission(request.client_order_id, broker_order_id)
+                return Submission(
+                    request.client_order_id,
+                    broker_order_id,
+                    self._orders.status(request.client_order_id),
+                )
         submission = self._gateway.submit(request)
+        if submission.client_order_id != request.client_order_id:
+            raise ValueError("broker returned an invalid order identity")
         if self._orders is not None:
-            self._orders.complete(request.client_order_id, submission.broker_order_id)
+            self._orders.complete(
+                request.client_order_id, submission.broker_order_id, submission.status
+            )
         self._requests[request.client_order_id] = request
         self._audit.append(submission)
         return submission
@@ -86,13 +99,17 @@ class IdempotentPaperExecutor:
         if self._orders is None:
             raise RuntimeError("reconciliation requires persistent order reservations")
         broker_id = self._orders.existing(request)
-        if broker_id is not None:
-            return Submission(request.client_order_id, broker_id)
+        status = self._orders.status(request.client_order_id)
+        if broker_id is not None and status in {"FILLED", "REJECTED", "CANCELLED"}:
+            return Submission(request.client_order_id, broker_id, status)
         submission = self._gateway.find_by_client_order_id(request.client_order_id)
         if submission.client_order_id != request.client_order_id or not submission.broker_order_id:
             raise ValueError("broker returned an invalid order identity")
-        self._orders.complete(request.client_order_id, submission.broker_order_id)
-        return Submission(submission.client_order_id, submission.broker_order_id)
+        self._orders.complete(
+            request.client_order_id, submission.broker_order_id, submission.status
+        )
+        self._requests.pop(request.client_order_id, None)
+        return submission
 
     def _submission_for(self, client_order_id: str) -> Submission:
         return next(item for item in self._audit if item.client_order_id == client_order_id)

@@ -96,6 +96,45 @@ def test_submitted_order_is_not_sent_again_after_restart(tmp_path):
     assert len(gateway.requests) == 1
 
 
+@pytest.mark.parametrize("status", ["FILLED", "REJECTED", "CANCELLED"])
+def test_terminal_lifecycle_survives_restart_without_resubmission(tmp_path, status):
+    from storage.sqlite import SQLiteDatabase
+
+    class Gateway(FakePaperGateway):
+        def find_by_client_order_id(self, client_order_id):
+            return Submission(client_order_id, "paper-1", status=status)
+
+    gateway = Gateway()
+    path = tmp_path / "orders.db"
+    with SQLiteDatabase(path) as db:
+        executor = IdempotentPaperExecutor(gateway, db.paper_orders)
+        executor.submit(request(), approved())
+        assert db.paper_orders.status(request().client_order_id) == "SUBMITTED"
+        assert executor.reconcile(request()).status == status
+    with SQLiteDatabase(path) as db:
+        result = IdempotentPaperExecutor(gateway, db.paper_orders).submit(request(), approved())
+        assert result.status == status
+        assert db.paper_orders.status(request().client_order_id) == status
+    assert len(gateway.requests) == 1
+
+
+def test_reconciliation_rejects_changed_broker_identity(tmp_path):
+    from storage.sqlite import SQLiteDatabase
+
+    class Gateway(FakePaperGateway):
+        def find_by_client_order_id(self, client_order_id):
+            return Submission(client_order_id, "different-broker-id", "FILLED")
+
+    gateway = Gateway()
+    with SQLiteDatabase(tmp_path / "orders.db") as db:
+        executor = IdempotentPaperExecutor(gateway, db.paper_orders)
+        executor.submit(request(), approved())
+        with pytest.raises(ValueError, match="identity"):
+            executor.reconcile(request())
+        assert db.paper_orders.status(request().client_order_id) == "SUBMITTED"
+    assert len(gateway.requests) == 1
+
+
 def test_paper_executor_submits_approved_order_and_records_audit():
     gateway = FakePaperGateway()
     executor = IdempotentPaperExecutor(gateway)

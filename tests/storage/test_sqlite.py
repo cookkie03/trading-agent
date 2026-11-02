@@ -59,10 +59,28 @@ def test_transaction_rolls_back_all_observations_on_error():
     database.close()
 
 
+def test_paper_order_terminal_state_cannot_regress():
+    from execution.paper import OrderRequest
+
+    order = OrderRequest(
+        "run:AAPL", "AAPL", Decimal("1"), Decimal("100"), Decimal("110"), Decimal("95")
+    )
+    with SQLiteDatabase(":memory:") as database:
+        orders = database.paper_orders
+        orders.reserve(order)
+        assert orders.status(order.client_order_id) == "RESERVED"
+        orders.complete(order.client_order_id, "paper-1", "FILLED")
+        orders.complete(order.client_order_id, "paper-1", "FILLED")
+        for status in ("SUBMITTED", "CANCELLED", "REJECTED"):
+            with pytest.raises(ValueError, match="transition"):
+                orders.complete(order.client_order_id, "paper-1", status)
+        assert orders.status(order.client_order_id) == "FILLED"
+
+
 def test_schema_migration_is_versioned():
     database = SQLiteDatabase(":memory:")
 
-    assert database.schema_version == 6
+    assert database.schema_version == 7
     assert database.migration_names == (
         "001_create_observations",
         "002_create_price_bars",
@@ -70,6 +88,7 @@ def test_schema_migration_is_versioned():
         "004_create_indicator_values_and_outbox",
         "005_create_decisions",
         "006_create_paper_orders",
+        "007_paper_order_lifecycle",
     )
     database.close()
 
