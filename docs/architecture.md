@@ -117,7 +117,7 @@ Stato di questo step: packaging `src/` e `.dockerignore` presenti. Dockerfile, c
 
 ## Composizione paper — 2026-11-02
 
-`workflows.paper_runtime` collega trade cycle, adapter Alpaca e repository SQLite per ordini e decisioni. La factory Alpaca usa `paper=True`, non accetta override URL e rifiuta configurazioni diverse dall'endpoint paper. È una composizione invocabile, non ancora un runtime automatico provider→agenti; persistenza e riconciliazione sono verificate offline con client simulato.
+`workflows.paper_runtime` collega trade cycle, adapter Alpaca e repository SQLite per ordini e decisioni. La factory Alpaca usa `paper=True`, non accetta override URL e rifiuta configurazioni diverse dall'endpoint paper. È una composizione invocabile, non ancora un runtime automatico provider→agenti; persistenza e riconciliazione sono verificate offline con client simulato. Il 2026-11-02 è stato verificato anche un bracket AAPL non marketable attraverso `TradeCycle` e questa factory sul conto paper: cancellazione confermata dal broker, quantità eseguita 0, riconciliazione SQLite `CANCELLED`. Lo state e il portfolio del test erano fixture controllate, non dati di ricerca o portfolio reali; non è un E2E provider→decisione.
 
 ## Rischio condiviso — 2026-11-02
 
