@@ -13,6 +13,7 @@ from data.ingestion import ingest_ohlcv
 from execution.paper import IdempotentPaperExecutor
 from storage.sqlite import DecisionRecord
 from workflows.langgraph_workflow import build_research_graph
+from workflows.market_calendar import alpaca_daily_timestamps
 from workflows.trade_cycle import TradeCycle
 
 
@@ -70,7 +71,8 @@ def run_provider_research_cycle(
     interval,
     as_of: datetime,
     max_age: timedelta,
-    expected_timestamps: tuple[datetime, ...],
+    expected_timestamps: tuple[datetime, ...] | None = None,
+    calendar_client=None,
 ):
     """Ingest provider bars and attach their latest close to technical research."""
     if as_of.utcoffset() is None or max_age <= timedelta(0):
@@ -81,6 +83,10 @@ def run_provider_research_cycle(
     bars = database.market_data.list_between(state.symbol, interval, start, end)
     if not bars:
         raise ValueError("no market bar available in requested interval")
+    if expected_timestamps is None:
+        if calendar_client is None or interval != "1d":
+            raise ValueError("daily Alpaca calendar or explicit expected timestamps required")
+        expected_timestamps = alpaca_daily_timestamps(calendar_client, start, end)
     if not expected_timestamps or any(
         timestamp.utcoffset() is None or not start <= timestamp < end
         for timestamp in expected_timestamps

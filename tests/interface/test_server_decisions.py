@@ -7,6 +7,22 @@ from interface.server import DashboardServer
 from storage.sqlite import DecisionRecord, SQLiteDatabase
 
 
+def test_daily_calendar_skips_holidays_and_preserves_session_dates(tmp_path):
+    from types import SimpleNamespace
+
+    from workflows.market_calendar import alpaca_daily_timestamps
+
+    class CalendarClient:
+        def get_calendar(self, request):
+            assert request.start.isoformat() == "2026-11-24"
+            return [SimpleNamespace(date=datetime(2026, 11, day).date()) for day in (25, 27, 30)]
+
+    timestamps = alpaca_daily_timestamps(
+        CalendarClient(), datetime(2026, 11, 25, tzinfo=UTC), datetime(2026, 12, 1, tzinfo=UTC)
+    )
+    assert timestamps == tuple(datetime(2026, 11, day, 5, tzinfo=UTC) for day in (25, 27, 30))
+
+
 def test_provider_cycle_rejects_missing_expected_market_bar(tmp_path):
     from dataclasses import replace
     from datetime import timedelta
