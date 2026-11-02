@@ -7,6 +7,39 @@ from interface.server import DashboardServer
 from storage.sqlite import DecisionRecord, SQLiteDatabase
 
 
+def test_provider_data_reaches_dashboard_before_pending_research(tmp_path):
+    from decimal import Decimal
+
+    from data.ingestion import ingest_ohlcv
+    from execution.risk import RiskLimits
+    from tests.data.test_ingestion import FakeProvider, make_bar
+    from tests.workflows.test_trade_cycle import approved_state, portfolio
+    from workflows.paper_runtime import run_research_cycle
+
+    path = tmp_path / "provider.db"
+    with SQLiteDatabase(path) as database:
+        ingest_ohlcv(
+            FakeProvider((make_bar(),)),
+            database,
+            symbol="AAPL",
+            start=datetime(2026, 10, 1, tzinfo=UTC),
+            end=datetime(2026, 11, 1, tzinfo=UTC),
+        )
+        result = run_research_cycle(
+            None, database, approved_state(), portfolio(), RiskLimits(), Decimal("104")
+        )
+        assert result["decision"] == "pending"
+    server = DashboardServer(SQLiteDashboardReadModel(path), port=0)
+    server.start()
+    try:
+        with urlopen(server.url("/api/dashboard")) as response:
+            payload = json.load(response)
+    finally:
+        server.close()
+    assert payload["watchlist"][0]["symbol"] == "AAPL"
+    assert payload["decisions"][0]["status"] == "pending"
+
+
 def test_missing_desk_evidence_does_not_produce_an_approved_decision_over_http(tmp_path):
     from decimal import Decimal
 

@@ -117,7 +117,7 @@ Stato di questo step: packaging `src/` e `.dockerignore` presenti. Dockerfile, c
 
 ## Evidenze desk — 2026-11-02
 
-Il grafo di ricerca lascia `pending` la decisione quando mancano evidenze dei desk o la review tecnica è incompleta; un veto risk resta `rejected`. I desk non tecnici sono ancora placeholder senza provider: questo controllo impedisce al grafo di presentarli come una sintesi approvata, `run_research_cycle` collega il grafo a `TradeCycle` solo per decisioni approvate; l'accesso diretto al ciclo resta un seam di basso livello che richiede uno state approvato dal chiamante. I desk placeholder mantengono la pipeline in attesa.
+Il grafo di ricerca lascia `pending` la decisione quando mancano evidenze dei desk o la review tecnica è incompleta; un veto risk resta `rejected`. I desk non tecnici sono ancora placeholder senza provider: questo controllo impedisce al grafo di presentarli come una sintesi approvata, `run_research_cycle` collega il grafo a `TradeCycle` solo per decisioni approvate; l'accesso diretto al ciclo resta un seam di basso livello che richiede uno state approvato dal chiamante. I desk placeholder mantengono la pipeline in attesa. Gli esiti `pending` e `rejected` vengono registrati nel repository decisioni e sono leggibili dalla dashboard; sono audit distinti dalla decisione di invio ordine.
 
 ## Composizione paper — 2026-11-02
 

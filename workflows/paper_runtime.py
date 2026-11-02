@@ -1,12 +1,14 @@
 """Compose the paper order cycle with durable local repositories."""
 
 from dataclasses import asdict
+from datetime import UTC, datetime
 
 from alpaca.trading.client import TradingClient
 
 from brokers.alpaca_orders import AlpacaPaperOrders
 from config import Settings
 from execution.paper import IdempotentPaperExecutor
+from storage.sqlite import DecisionRecord
 from workflows.langgraph_workflow import build_research_graph
 from workflows.trade_cycle import TradeCycle
 
@@ -30,6 +32,25 @@ def run_research_cycle(client, database, state, portfolio, limits, entry_price):
     if result["decision"] == "approved":
         cycle, _ = paper_runtime(client, database)
         result["execution"] = cycle.run(result["risk_review"].state, portfolio, limits, entry_price)
+    else:
+        review = result["risk_review"]
+        rationale = (
+            "; ".join(review.decision.reasons)
+            if result["decision"] == "rejected"
+            else "Desk evidence or technical review incomplete"
+        )
+        database.decisions.save(
+            DecisionRecord(
+                client_order_id=f"{state.run_id}:{state.symbol}:research:{result['decision']}",
+                symbol=state.symbol,
+                status=result["decision"],
+                direction=state.proposed_direction,
+                conviction=state.conviction,
+                rationale=rationale,
+                observed_at=datetime.now(UTC),
+                payload=state.run_id,
+            )
+        )
     return result
 
 
