@@ -7,7 +7,32 @@ from interface.server import DashboardServer
 from storage.sqlite import DecisionRecord, SQLiteDatabase
 
 
+def test_provider_cycle_rejects_insufficient_atr_history(tmp_path):
+    import pytest
+
+    from execution.risk import RiskLimits
+    from tests.data.test_ingestion import FakeProvider, make_bar
+    from tests.workflows.test_trade_cycle import approved_state, portfolio
+    from workflows.paper_runtime import run_provider_research_cycle
+
+    with SQLiteDatabase(tmp_path / "insufficient.db") as database:
+        with pytest.raises(ValueError, match="ATR"):
+            run_provider_research_cycle(
+                FakeProvider((make_bar(),)),
+                None,
+                database,
+                approved_state(),
+                portfolio(),
+                RiskLimits(),
+                start=datetime(2026, 10, 1, tzinfo=UTC),
+                end=datetime(2026, 11, 1, tzinfo=UTC),
+                interval="1d",
+            )
+
+
 def test_provider_bar_is_used_by_technical_desk_and_visible_over_http(tmp_path):
+    from dataclasses import replace
+    from datetime import timedelta
     from decimal import Decimal
 
     from execution.risk import RiskLimits
@@ -15,10 +40,14 @@ def test_provider_bar_is_used_by_technical_desk_and_visible_over_http(tmp_path):
     from tests.workflows.test_trade_cycle import approved_state, portfolio
     from workflows.paper_runtime import run_provider_research_cycle
 
+    bar = make_bar()
+    bars = tuple(
+        replace(bar, timestamp=bar.timestamp - timedelta(days=i)) for i in range(14, -1, -1)
+    )
     path = tmp_path / "provider-research.db"
     with SQLiteDatabase(path) as database:
         result = run_provider_research_cycle(
-            FakeProvider((make_bar(),)),
+            FakeProvider(bars),
             None,
             database,
             approved_state(),
@@ -32,6 +61,7 @@ def test_provider_bar_is_used_by_technical_desk_and_visible_over_http(tmp_path):
             opinion for opinion in result["desk_opinions"] if opinion.desk == "technical"
         )
         assert "104.00" in technical.view
+        assert result["risk_review"].state.evaluations[-1].values["atr"] == Decimal("6")
         assert result["decision"] == "pending"
     server = DashboardServer(SQLiteDashboardReadModel(path), port=0)
     server.start()

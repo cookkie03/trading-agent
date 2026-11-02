@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 
 from alpaca.trading.client import TradingClient
 
+from analysis.indicators import average_true_range
+from analysis.strategy_state import QuantitativeEvaluation
 from brokers.alpaca_orders import AlpacaPaperOrders
 from config import Settings
 from data.ingestion import ingest_ohlcv
@@ -60,11 +62,33 @@ def run_provider_research_cycle(
 ):
     """Ingest provider bars and attach their latest close to technical research."""
     ingest_ohlcv(provider, database, symbol=state.symbol, start=start, end=end, interval=interval)
-    bar = database.market_data.latest(state.symbol, interval)
-    if bar is None or not start <= bar.timestamp < end:
+    bars = database.market_data.list_between(state.symbol, interval, start, end)
+    if not bars:
         raise ValueError("no market bar available in requested interval")
+    if len({bar.source for bar in bars}) != 1 or len({bar.timestamp for bar in bars}) != len(bars):
+        raise ValueError("ATR requires a single unambiguous market data source")
+    atr_values = average_true_range(
+        [bar.high for bar in bars],
+        [bar.low for bar in bars],
+        [bar.close for bar in bars],
+        window=14,
+    )
+    if not atr_values:
+        raise ValueError("ATR requires at least 15 bars")
+    bar = bars[-1]
+    evaluation = QuantitativeEvaluation(
+        name="atr",
+        values={"atr": atr_values[-1]},
+        observed_at=bar.timestamp,
+        source=bar.source,
+        parameters={"window": 14, "interval": interval},
+        formula_version="atr-wilder-v1",
+        interpretation="Wilder ATR from provider bars",
+    )
     state = replace(
         state,
+        evaluations=tuple(item for item in state.evaluations if "atr" not in item.values)
+        + (evaluation,),
         technical_view=(
             f"{state.technical_view} Latest {interval} close {bar.close} "
             f"at {bar.timestamp.isoformat()} from {bar.source}."

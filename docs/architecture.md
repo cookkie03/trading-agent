@@ -117,7 +117,7 @@ Stato di questo step: packaging `src/` e `.dockerignore` presenti. Dockerfile, c
 
 ## Provider e desk tecnico — 2026-11-02
 
-`run_provider_research_cycle` acquisisce barre tramite il provider configurato, le persiste e usa la chiusura dell'ultima barra nell'intervallo richiesto come prezzo e contesto della review tecnica. Il test copre provider simulato → SQLite → desk → decisione pending → HTTP. Non calcola ATR dalle barre, non verifica freschezza rispetto al clock e non fornisce evidenze agli altri desk: non è pronto per decisioni automatiche di trading.
+`run_provider_research_cycle` acquisisce barre tramite il provider configurato, le persiste e usa la chiusura dell'ultima barra nell'intervallo richiesto come prezzo e contesto della review tecnica. Il test copre provider simulato → SQLite → desk → decisione pending → HTTP. Calcola ATR Wilder a 14 periodi dalle barre di una sola fonte, rifiutando storico insufficiente o timestamp duplicati, e sostituisce l'ATR preesistente nello state. Non verifica freschezza rispetto al clock, continuità delle barre o evidenze degli altri desk: non è pronto per decisioni automatiche di trading.
 
 ## Evidenze desk — 2026-11-02
 
