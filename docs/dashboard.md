@@ -12,7 +12,7 @@ La UI usa React + TypeScript + Vite/npm e legge contratti HTTP read-only dal bac
 - Portfolio: disponibile solo quando il read model persistente è collegato.
 - Cash, posizioni e ordini: stessi limiti del portfolio.
 - Watchlist, eventi e stato run: vuoti se non forniti dalla sorgente.
-- Decisioni, trigger e benchmark/alpha: rispettivamente non disponibili o Post-MVP; nessun numero demo viene mostrato come reale.
+- Decisioni: il read model espone una coda `decisions` tipizzata; resta vuota finché la pipeline di ricerca/risk non la alimenta. Trigger e benchmark/alpha restano non disponibili o Post-MVP; nessun numero demo viene mostrato come reale.
 
 ## Contratto e avvio
 
