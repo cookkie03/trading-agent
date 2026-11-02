@@ -185,7 +185,7 @@ class SQLiteDashboardReadModel:
         )
         return DashboardSnapshot(
             observed_at=observed_at,
-            source="alpaca" if portfolio_data else latest_bar.source,
+            source=("alpaca" if portfolio_data else latest_bar.source if latest_bar else "sqlite"),
             freshness=observed_at.isoformat(),
             portfolio=portfolio_data
             or PortfolioReadModel(
