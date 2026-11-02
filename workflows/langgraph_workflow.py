@@ -67,7 +67,7 @@ def _decision_node(state: ResearchGraphState) -> dict[str, str]:
     return {"decision": "approved" if review.approved else "rejected"}
 
 
-def build_research_graph():
+def build_research_graph(*, checkpointer=None):
     graph = StateGraph(ResearchGraphState)
     graph.add_node("desk_review", _desk_node)
     graph.add_node("pm_review", _pm_node)
@@ -80,4 +80,4 @@ def build_research_graph():
     graph.add_edge("technical_review", "risk_review")
     graph.add_edge("risk_review", "decision")
     graph.add_edge("decision", END)
-    return graph.compile()
+    return graph.compile(checkpointer=checkpointer)
