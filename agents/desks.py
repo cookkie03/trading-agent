@@ -7,6 +7,7 @@ from datetime import date
 from decimal import Decimal
 
 from analysis.strategy_state import ResearchState
+from data.models import PriceBar
 from data.providers.alpaca_news import NewsItem
 from data.providers.yahoo_fundamentals import FundamentalObservation
 
@@ -19,6 +20,7 @@ class DeskContext:
     research: ResearchState
     news: tuple[NewsItem, ...] = ()
     fundamentals: tuple[FundamentalObservation, ...] = ()
+    market_bar: PriceBar | None = None
 
 
 @dataclass(frozen=True)
@@ -34,9 +36,17 @@ def run_desks(context: DeskContext) -> tuple[DeskOpinion, ...]:
     return (
         DeskOpinion(
             desk="market",
-            view="market context pending provider evidence",
-            rationale="Macro and sector data must come from a connected provider.",
-            evidence=(),
+            view=(
+                f"{context.market_bar.symbol} close {context.market_bar.close}"
+                if context.market_bar
+                else "market context pending provider evidence"
+            ),
+            rationale="A market proxy price is context, not a complete macro or sector analysis.",
+            evidence=(
+                (f"{context.market_bar.source} | {context.market_bar.timestamp.isoformat()}",)
+                if context.market_bar
+                else ()
+            ),
         ),
         DeskOpinion(
             desk="technical",

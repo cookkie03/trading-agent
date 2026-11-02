@@ -10,6 +10,7 @@ from langgraph.graph import END, START, StateGraph
 from agents.desks import DeskContext, DeskOpinion, run_desks
 from agents.risk import RiskAnalyst, RiskReview
 from analysis.strategy_state import ResearchState
+from data.models import PriceBar
 from data.providers.alpaca_news import NewsItem
 from data.providers.yahoo_fundamentals import FundamentalObservation
 from execution.risk import PortfolioRisk, RiskLimits
@@ -23,6 +24,7 @@ class ResearchGraphState(TypedDict, total=False):
     technical_complete: bool
     news: tuple[NewsItem, ...]
     fundamentals: tuple[FundamentalObservation, ...]
+    market_bar: PriceBar | None
     desk_opinions: tuple[DeskOpinion, ...]
     pm_ready: bool
     risk_review: RiskReview
@@ -40,14 +42,15 @@ def _desk_node(state: ResearchGraphState) -> dict[str, tuple[DeskOpinion, ...]]:
                 research=research,
                 news=state.get("news", ()),
                 fundamentals=state.get("fundamentals", ()),
+                market_bar=state.get("market_bar"),
             )
         )
     }
 
 
 def _pm_node(state: ResearchGraphState) -> dict[str, bool]:
-    opinions = state["desk_opinions"]
-    return {"pm_ready": len(opinions) == 4 and all(opinion.evidence for opinion in opinions)}
+    # Evidence availability is not a PM thesis or a decision to trade.
+    return {"pm_ready": False}
 
 
 def _technical_node(state: ResearchGraphState) -> dict[str, bool]:

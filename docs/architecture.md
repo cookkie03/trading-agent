@@ -115,9 +115,13 @@ Il rilascio dovrà includere Dockerfile e procedura di build riproducibile con d
 
 Stato di questo step: packaging `src/` e `.dockerignore` presenti. Dockerfile, comando applicativo, lock delle dipendenze e validazione container arriveranno con il primo flusso eseguibile. Nessuna immagine o distribuzione produzione è attestata da questo scaffolding.
 
+## Market proxy e gate PM — 2026-11-02
+
+Il desk market può ricevere una barra di un proxy indipendente, acquisita tramite il provider e con fonte e timestamp. Una singola quotazione non costituisce analisi macro; non viene persistita in questa slice. Il grafo mantiene il PM `pending` anche se tutti i desk hanno qualche evidenza: la presenza di dati non è una sintesi o un'autorizzazione a fare trading. Il percorso approvato resta intenzionalmente bloccato fino a una vera review PM.
+
 ## Fundamentals correnti — 2026-11-02
 
-`YahooFundamentalsProvider` espone la capitalizzazione corrente con simbolo, fonte e istante di osservazione al desk fundamentals; è un dato singolo, non un'analisi fondamentale completa né una serie point-in-time utilizzabile per backtest. Il ciclo rifiuta osservazioni successive ad `as_of`. Adapter e desk verificati offline con fixture; fonte reale, freschezza specifica e persistenza non ancora verificate.
+`YahooFundamentalsProvider` espone la capitalizzazione corrente con simbolo, fonte e istante di osservazione al desk fundamentals; è un dato singolo, non un'analisi fondamentale completa né una serie point-in-time utilizzabile per backtest. Il ciclo rifiuta osservazioni successive ad `as_of`. Adapter e desk verificati offline con fixture; una richiesta Yahoo reale per AAPL ha restituito un'osservazione il 2026-11-02. Freschezza specifica e persistenza non ancora verificate.
 
 ## News e desk sentiment — 2026-11-02
 

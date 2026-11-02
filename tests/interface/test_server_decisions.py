@@ -7,6 +7,25 @@ from interface.server import DashboardServer
 from storage.sqlite import DecisionRecord, SQLiteDatabase
 
 
+def test_market_desk_receives_independent_market_proxy_with_provenance():
+    from dataclasses import replace
+    from decimal import Decimal
+
+    from agents.desks import DeskContext, run_desks
+    from tests.data.test_ingestion import make_bar
+    from tests.workflows.test_trade_cycle import approved_state
+
+    state = approved_state()
+    market_bar = replace(make_bar(), symbol="SPY")
+    opinions = run_desks(
+        DeskContext(state.symbol, state.as_of, Decimal("100"), state, market_bar=market_bar)
+    )
+    market = next(opinion for opinion in opinions if opinion.desk == "market")
+    assert "SPY" in market.view
+    assert "104.00" in market.view
+    assert "openbb:yfinance" in market.evidence[0]
+
+
 def test_fundamentals_provider_supplies_sourced_observation_to_desk(tmp_path):
     from decimal import Decimal
     from types import SimpleNamespace

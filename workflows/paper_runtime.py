@@ -24,7 +24,16 @@ def paper_runtime(client, database):
 
 
 def run_research_cycle(
-    client, database, state, portfolio, limits, entry_price, *, news=(), fundamentals=()
+    client,
+    database,
+    state,
+    portfolio,
+    limits,
+    entry_price,
+    *,
+    news=(),
+    fundamentals=(),
+    market_bar=None,
 ):
     """Run research and only execute a decision approved by the complete graph."""
     result = build_research_graph().invoke(
@@ -35,6 +44,7 @@ def run_research_cycle(
             "entry_price": entry_price,
             "news": news,
             "fundamentals": fundamentals,
+            "market_bar": market_bar,
         }
     )
     if result["decision"] == "approved":
@@ -79,6 +89,7 @@ def run_provider_research_cycle(
     calendar_client=None,
     news_provider=None,
     fundamentals_provider=None,
+    market_symbol=None,
 ):
     """Ingest provider bars and attach their latest close to technical research."""
     if as_of.utcoffset() is None or max_age <= timedelta(0):
@@ -138,8 +149,31 @@ def run_provider_research_cycle(
     )
     if any(item.observed_at > as_of or item.symbol != state.symbol for item in fundamentals):
         raise ValueError("fundamental observation is not valid as of this run")
+    market_bar = None
+    if market_symbol:
+        candidates = provider.get_ohlcv_history(market_symbol, start, end, interval)
+        eligible = [
+            item
+            for item in candidates
+            if item.symbol == market_symbol
+            and item.interval == interval
+            and start <= item.timestamp < end
+        ]
+        if not eligible:
+            raise ValueError("market proxy has no bars in requested interval")
+        market_bar = max(eligible, key=lambda item: item.timestamp)
+        if as_of - market_bar.timestamp > max_age:
+            raise ValueError("market proxy data is stale")
     return run_research_cycle(
-        client, database, state, portfolio, limits, bar.close, news=news, fundamentals=fundamentals
+        client,
+        database,
+        state,
+        portfolio,
+        limits,
+        bar.close,
+        news=news,
+        fundamentals=fundamentals,
+        market_bar=market_bar,
     )
 
 
