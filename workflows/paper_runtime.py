@@ -13,7 +13,7 @@ from data.ingestion import ingest_ohlcv
 from execution.paper import IdempotentPaperExecutor
 from storage.sqlite import DecisionRecord
 from workflows.langgraph_workflow import build_research_graph
-from workflows.market_calendar import alpaca_daily_timestamps
+from workflows.market_calendar import alpaca_daily_timestamps, alpaca_hourly_timestamps
 from workflows.trade_cycle import TradeCycle
 
 
@@ -84,9 +84,10 @@ def run_provider_research_cycle(
     if not bars:
         raise ValueError("no market bar available in requested interval")
     if expected_timestamps is None:
-        if calendar_client is None or interval != "1d":
-            raise ValueError("daily Alpaca calendar or explicit expected timestamps required")
-        expected_timestamps = alpaca_daily_timestamps(calendar_client, start, end)
+        calendars = {"1d": alpaca_daily_timestamps, "1h": alpaca_hourly_timestamps}
+        if calendar_client is None or interval not in calendars:
+            raise ValueError("Alpaca calendar or explicit expected timestamps required")
+        expected_timestamps = calendars[interval](calendar_client, start, end)
     if not expected_timestamps or any(
         timestamp.utcoffset() is None or not start <= timestamp < end
         for timestamp in expected_timestamps

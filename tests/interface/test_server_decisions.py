@@ -7,6 +7,27 @@ from interface.server import DashboardServer
 from storage.sqlite import DecisionRecord, SQLiteDatabase
 
 
+def test_hourly_calendar_handles_early_close_and_market_timezone():
+    from types import SimpleNamespace
+
+    from workflows.market_calendar import alpaca_hourly_timestamps
+
+    class CalendarClient:
+        def get_calendar(self, request):
+            return [
+                SimpleNamespace(
+                    open=datetime(2026, 11, 27, 9, 30), close=datetime(2026, 11, 27, 13, 0)
+                )
+            ]
+
+    timestamps = alpaca_hourly_timestamps(
+        CalendarClient(), datetime(2026, 11, 27, tzinfo=UTC), datetime(2026, 11, 28, tzinfo=UTC)
+    )
+    assert timestamps == tuple(
+        datetime(2026, 11, 27, hour, tzinfo=UTC) for hour in (14, 15, 16, 17)
+    )
+
+
 def test_daily_calendar_skips_holidays_and_preserves_session_dates(tmp_path):
     from types import SimpleNamespace
 
