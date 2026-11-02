@@ -7,6 +7,43 @@ from interface.server import DashboardServer
 from storage.sqlite import DecisionRecord, SQLiteDatabase
 
 
+def test_provider_bar_is_used_by_technical_desk_and_visible_over_http(tmp_path):
+    from decimal import Decimal
+
+    from execution.risk import RiskLimits
+    from tests.data.test_ingestion import FakeProvider, make_bar
+    from tests.workflows.test_trade_cycle import approved_state, portfolio
+    from workflows.paper_runtime import run_provider_research_cycle
+
+    path = tmp_path / "provider-research.db"
+    with SQLiteDatabase(path) as database:
+        result = run_provider_research_cycle(
+            FakeProvider((make_bar(),)),
+            None,
+            database,
+            approved_state(),
+            portfolio(),
+            RiskLimits(),
+            start=datetime(2026, 10, 1, tzinfo=UTC),
+            end=datetime(2026, 11, 1, tzinfo=UTC),
+            interval="1d",
+        )
+        technical = next(
+            opinion for opinion in result["desk_opinions"] if opinion.desk == "technical"
+        )
+        assert "104.00" in technical.view
+        assert result["decision"] == "pending"
+    server = DashboardServer(SQLiteDashboardReadModel(path), port=0)
+    server.start()
+    try:
+        with urlopen(server.url("/api/dashboard")) as response:
+            payload = json.load(response)
+    finally:
+        server.close()
+    assert Decimal(payload["watchlist"][0]["close"]) == Decimal("104")
+    assert payload["decisions"][0]["status"] == "pending"
+
+
 def test_provider_data_reaches_dashboard_before_pending_research(tmp_path):
     from decimal import Decimal
 

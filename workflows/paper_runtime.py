@@ -1,12 +1,13 @@
 """Compose the paper order cycle with durable local repositories."""
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import UTC, datetime
 
 from alpaca.trading.client import TradingClient
 
 from brokers.alpaca_orders import AlpacaPaperOrders
 from config import Settings
+from data.ingestion import ingest_ohlcv
 from execution.paper import IdempotentPaperExecutor
 from storage.sqlite import DecisionRecord
 from workflows.langgraph_workflow import build_research_graph
@@ -52,6 +53,24 @@ def run_research_cycle(client, database, state, portfolio, limits, entry_price):
             )
         )
     return result
+
+
+def run_provider_research_cycle(
+    provider, client, database, state, portfolio, limits, *, start, end, interval
+):
+    """Ingest provider bars and attach their latest close to technical research."""
+    ingest_ohlcv(provider, database, symbol=state.symbol, start=start, end=end, interval=interval)
+    bar = database.market_data.latest(state.symbol, interval)
+    if bar is None or not start <= bar.timestamp < end:
+        raise ValueError("no market bar available in requested interval")
+    state = replace(
+        state,
+        technical_view=(
+            f"{state.technical_view} Latest {interval} close {bar.close} "
+            f"at {bar.timestamp.isoformat()} from {bar.source}."
+        ),
+    )
+    return run_research_cycle(client, database, state, portfolio, limits, bar.close)
 
 
 def alpaca_paper_runtime(settings: Settings, database):

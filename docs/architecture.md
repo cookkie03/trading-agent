@@ -115,6 +115,10 @@ Il rilascio dovrà includere Dockerfile e procedura di build riproducibile con d
 
 Stato di questo step: packaging `src/` e `.dockerignore` presenti. Dockerfile, comando applicativo, lock delle dipendenze e validazione container arriveranno con il primo flusso eseguibile. Nessuna immagine o distribuzione produzione è attestata da questo scaffolding.
 
+## Provider e desk tecnico — 2026-11-02
+
+`run_provider_research_cycle` acquisisce barre tramite il provider configurato, le persiste e usa la chiusura dell'ultima barra nell'intervallo richiesto come prezzo e contesto della review tecnica. Il test copre provider simulato → SQLite → desk → decisione pending → HTTP. Non calcola ATR dalle barre, non verifica freschezza rispetto al clock e non fornisce evidenze agli altri desk: non è pronto per decisioni automatiche di trading.
+
 ## Evidenze desk — 2026-11-02
 
 Il grafo di ricerca lascia `pending` la decisione quando mancano evidenze dei desk o la review tecnica è incompleta; un veto risk resta `rejected`. I desk non tecnici sono ancora placeholder senza provider: questo controllo impedisce al grafo di presentarli come una sintesi approvata, `run_research_cycle` collega il grafo a `TradeCycle` solo per decisioni approvate; l'accesso diretto al ciclo resta un seam di basso livello che richiede uno state approvato dal chiamante. I desk placeholder mantengono la pipeline in attesa. Gli esiti `pending` e `rejected` vengono registrati nel repository decisioni e sono leggibili dalla dashboard; sono audit distinti dalla decisione di invio ordine.
