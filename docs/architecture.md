@@ -115,6 +115,10 @@ Il rilascio dovrà includere Dockerfile e procedura di build riproducibile con d
 
 Stato di questo step: packaging `src/` e `.dockerignore` presenti. Dockerfile, comando applicativo, lock delle dipendenze e validazione container arriveranno con il primo flusso eseguibile. Nessuna immagine o distribuzione produzione è attestata da questo scaffolding.
 
+## Rischio condiviso — 2026-11-02
+
+`RiskAnalyst` e `TradeCycle` usano la stessa policy provvisoria di dimensionamento ATR in `execution.risk.size_trade`, evitando una review su quantità fissa diversa dall'ordine. Il ciclo rivaluta il rischio prima dell'invio; se portfolio o prezzo cambiano, la decisione può cambiare. I parametri restano da validare in backtest. Il test offline attraversa review, ciclo, SQLite e dashboard HTTP con broker simulato: non prova un ordine Alpaca né una pipeline provider completa.
+
 ## Verifica del primo modulo — 2026-10-31
 
 Implementati `Broker` (Protocol), modelli immutabili del progetto e `AlpacaBroker` con `get_account`, `get_positions`, `get_orders`. Lo SDK è confinato in `brokers/alpaca.py`; il contratto non ha metodi di invio o cancellazione. La lettura ordini restituisce una finestra limitata, con filtri espliciti e gambe annidate; non promette uno storico completo o uno snapshot atomico tra tre richieste.

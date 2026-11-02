@@ -7,6 +7,42 @@ from interface.server import DashboardServer
 from storage.sqlite import DecisionRecord, SQLiteDatabase
 
 
+def test_reviewed_trade_uses_same_risk_quantity_through_dashboard(tmp_path):
+    from dataclasses import replace
+    from decimal import Decimal
+
+    from agents.risk import RiskAnalyst
+    from execution.paper import IdempotentPaperExecutor
+    from execution.risk import RiskLimits
+    from tests.workflows.test_trade_cycle import Gateway, approved_state, portfolio
+    from workflows.trade_cycle import TradeCycle
+
+    state = approved_state()
+    state = replace(
+        state, evaluations=(replace(state.evaluations[0], values={"atr": Decimal("4")}),)
+    )
+    # Ten shares fail this limit, but the ATR-sized 6.25 shares pass.
+    limits = RiskLimits(max_symbol_exposure=Decimal("0.08"))
+    review = RiskAnalyst(limits).review(state, portfolio(), Decimal("100"))
+    assert review.approved
+
+    path = tmp_path / "review.db"
+    with SQLiteDatabase(path) as database:
+        cycle = TradeCycle(
+            IdempotentPaperExecutor(Gateway(), database.paper_orders), database.decisions
+        )
+        result = cycle.run(review.state, portfolio(), limits, Decimal("100"))
+        assert result.submission is not None
+    server = DashboardServer(SQLiteDashboardReadModel(path), port=0)
+    server.start()
+    try:
+        with urlopen(server.url("/api/dashboard")) as response:
+            decision = json.load(response)["decisions"][0]
+    finally:
+        server.close()
+    assert decision["status"] == "risk_approved"
+
+
 def test_trade_cycle_decision_survives_restart_and_is_visible_over_http(tmp_path):
     from decimal import Decimal
 

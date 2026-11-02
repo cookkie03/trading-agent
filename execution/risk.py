@@ -112,6 +112,19 @@ def calculate_position_size(
     )
 
 
+def size_trade(portfolio: PortfolioRisk, atr: Decimal, entry_price: Decimal) -> PositionSizing:
+    """Apply the shared provisional sizing policy for review and execution."""
+    return calculate_position_size(
+        equity=portfolio.equity,
+        risk_fraction=Decimal("0.005"),
+        conviction_multiplier=Decimal("1"),
+        atr=atr,
+        stop_atr_multiple=Decimal("2"),
+        entry_price=entry_price,
+        max_symbol_fraction=Decimal("0.10"),
+    )
+
+
 def evaluate_trade(
     intent: TradeIntent,
     portfolio: PortfolioRisk,

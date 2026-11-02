@@ -13,8 +13,8 @@ from execution.risk import (
     RiskDecision,
     RiskLimits,
     TradeIntent,
-    calculate_position_size,
     evaluate_trade,
+    size_trade,
 )
 from storage.sqlite import DecisionRecord
 
@@ -49,15 +49,7 @@ class TradeCycle:
         )
         if atr is None:
             raise ValueError("approved state must include atr evaluation")
-        sizing = calculate_position_size(
-            equity=portfolio.equity,
-            risk_fraction=Decimal("0.005"),
-            conviction_multiplier=Decimal("1"),
-            atr=atr,
-            stop_atr_multiple=Decimal("2"),
-            entry_price=entry_price,
-            max_symbol_fraction=Decimal("0.10"),
-        )
+        sizing = size_trade(portfolio, atr, entry_price)
         request = OrderRequest(
             client_order_id=f"{state.run_id}:{state.symbol}",
             symbol=state.symbol,
