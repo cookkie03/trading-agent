@@ -199,6 +199,7 @@ class SQLiteDashboardReadModel:
                 }
                 for bar in bars
             ],
+            decisions=(),
             modules={
                 "market_data": "available",
                 "decisions": "unavailable",
