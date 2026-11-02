@@ -24,6 +24,19 @@ class PaperOrderRequest:
 class PaperSubmission:
     broker_order_id: str
     client_order_id: str
+    status: str = "SUBMITTED"
+
+
+def _submission(result) -> PaperSubmission:
+    status = getattr(result, "status", "new")
+    status = getattr(status, "value", status)
+    normalized = {
+        "filled": "FILLED",
+        "rejected": "REJECTED",
+        "canceled": "CANCELLED",
+        "expired": "CANCELLED",
+    }.get(status, "SUBMITTED")
+    return PaperSubmission(str(result.id), str(result.client_order_id), normalized)
 
 
 class TradingClientLike(Protocol):
@@ -49,18 +62,13 @@ class AlpacaPaperOrders:
             client_order_id=order.client_order_id,
         )
         result = self._client.submit_order(request)
-        return PaperSubmission(
-            broker_order_id=str(result.id),
-            client_order_id=str(result.client_order_id),
-        )
+        return _submission(result)
 
     def find_by_client_order_id(self, client_order_id: str) -> PaperSubmission:
         if not client_order_id.strip():
             raise ValueError("client_order_id must not be empty")
         result = self._client.get_order_by_client_id(client_order_id)
-        return PaperSubmission(
-            broker_order_id=str(result.id), client_order_id=str(result.client_order_id)
-        )
+        return _submission(result)
 
     def cancel(self, broker_order_id: str) -> None:
         if not broker_order_id.strip():

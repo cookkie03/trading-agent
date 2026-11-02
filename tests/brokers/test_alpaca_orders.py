@@ -21,6 +21,17 @@ class FakeClient:
         self.cancelled.append(order_id)
 
 
+def test_lookup_normalizes_cancelled_broker_status():
+    class LookupClient(FakeClient):
+        def get_order_by_client_id(self, client_order_id):
+            return SimpleNamespace(
+                id="broker-1", client_order_id=client_order_id, status="canceled"
+            )
+
+    result = AlpacaPaperOrders(LookupClient()).find_by_client_order_id("run-1:AAPL")
+    assert result.status == "CANCELLED"
+
+
 def test_paper_orders_submit_and_cancel_through_injected_client():
     client = FakeClient()
     adapter = AlpacaPaperOrders(client)
