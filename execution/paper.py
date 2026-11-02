@@ -42,6 +42,9 @@ class PaperGateway(Protocol):
     def submit(self, request: OrderRequest) -> Submission:
         ...
 
+    def find_by_client_order_id(self, client_order_id: str) -> Submission:
+        ...
+
 
 class IdempotentPaperExecutor:
     """Submit only risk-approved orders and remember client IDs."""
@@ -78,6 +81,18 @@ class IdempotentPaperExecutor:
         self._requests[request.client_order_id] = request
         self._audit.append(submission)
         return submission
+
+    def reconcile(self, request: OrderRequest) -> Submission:
+        if self._orders is None:
+            raise RuntimeError("reconciliation requires persistent order reservations")
+        broker_id = self._orders.existing(request)
+        if broker_id is not None:
+            return Submission(request.client_order_id, broker_id)
+        submission = self._gateway.find_by_client_order_id(request.client_order_id)
+        if submission.client_order_id != request.client_order_id or not submission.broker_order_id:
+            raise ValueError("broker returned an invalid order identity")
+        self._orders.complete(request.client_order_id, submission.broker_order_id)
+        return Submission(submission.client_order_id, submission.broker_order_id)
 
     def _submission_for(self, client_order_id: str) -> Submission:
         return next(item for item in self._audit if item.client_order_id == client_order_id)

@@ -642,7 +642,21 @@ class PaperOrderRepository:
             raise ValueError("client order ID was used for a different order")
         return cursor.rowcount == 1, row[6]
 
+    def existing(self, order):
+        row = self._connection.execute(
+            "SELECT * FROM paper_orders WHERE client_order_id = ?", (order.client_order_id,)
+        ).fetchone()
+        if row is None:
+            raise ValueError("paper order reservation not found")
+        fields = (row[1], Decimal(row[2]), Decimal(row[3]), Decimal(row[4]), Decimal(row[5]))
+        if fields != (order.symbol, order.quantity, order.limit_price,
+                      order.take_profit_price, order.stop_price):
+            raise ValueError("client order ID was used for a different order")
+        return row[6]
+
     def complete(self, client_order_id: str, broker_order_id: str) -> None:
+        if self._connection.in_transaction:
+            raise RuntimeError("paper order completion cannot use an open transaction")
         self._connection.execute(
             "UPDATE paper_orders SET broker_order_id = ? WHERE client_order_id = ?",
             (broker_order_id, client_order_id),

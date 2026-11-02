@@ -40,6 +40,29 @@ def test_submission_is_rejected_inside_database_transaction(tmp_path):
     assert gateway.requests == []
 
 
+def test_uncertain_submission_can_be_reconciled_without_resubmission(tmp_path):
+    from storage.sqlite import SQLiteDatabase
+
+    class GatewayWithLookup(FakePaperGateway):
+        def submit(self, order):
+            self.requests.append(order)
+            raise TimeoutError("response lost")
+
+        def find_by_client_order_id(self, client_order_id):
+            return Submission(client_order_id, "paper-1")
+
+    gateway = GatewayWithLookup()
+    path = tmp_path / "orders.db"
+    with SQLiteDatabase(path) as db:
+        with pytest.raises(TimeoutError):
+            IdempotentPaperExecutor(gateway, db.paper_orders).submit(request(), approved())
+    with SQLiteDatabase(path) as db:
+        executor = IdempotentPaperExecutor(gateway, db.paper_orders)
+        assert executor.reconcile(request()) == Submission("run-1:AAPL", "paper-1")
+        assert executor.submit(request(), approved()) == Submission("run-1:AAPL", "paper-1")
+    assert len(gateway.requests) == 1
+
+
 def test_uncertain_submission_is_not_retried_after_restart(tmp_path):
     from storage.sqlite import SQLiteDatabase
 

@@ -29,6 +29,7 @@ class PaperSubmission:
 class TradingClientLike(Protocol):
     def submit_order(self, request): ...
     def cancel_order_by_id(self, order_id): ...
+    def get_order_by_client_id(self, client_order_id): ...
 
 
 class AlpacaPaperOrders:
@@ -51,6 +52,14 @@ class AlpacaPaperOrders:
         return PaperSubmission(
             broker_order_id=str(result.id),
             client_order_id=str(result.client_order_id),
+        )
+
+    def find_by_client_order_id(self, client_order_id: str) -> PaperSubmission:
+        if not client_order_id.strip():
+            raise ValueError("client_order_id must not be empty")
+        result = self._client.get_order_by_client_id(client_order_id)
+        return PaperSubmission(
+            broker_order_id=str(result.id), client_order_id=str(result.client_order_id)
         )
 
     def cancel(self, broker_order_id: str) -> None:
