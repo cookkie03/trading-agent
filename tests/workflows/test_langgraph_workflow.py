@@ -22,4 +22,6 @@ def test_research_graph_compiles_and_runs_deterministic_review():
         }
     )
 
+    assert result["technical_complete"] is True
     assert result["risk_review"].approved is True
+    assert result["decision"] == "approved"
