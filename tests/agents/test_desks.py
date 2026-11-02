@@ -23,4 +23,6 @@ def test_all_required_desks_return_named_contributions():
         "sentiment",
     }
     assert all(opinion.view and opinion.rationale for opinion in opinions)
-    assert opinions[1].evidence == ("atr", "quantitative evaluation")
+    assert opinions[1].evidence == (
+        "atr | sqlite:price_bars | atr-wilder-v1 | 2026-11-02T14:00:00+00:00",
+    )

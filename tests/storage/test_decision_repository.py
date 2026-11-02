@@ -24,6 +24,15 @@ def test_decision_repository_is_idempotent_and_lists_latest_first(tmp_path):
     assert database.decisions.latest() == (record(),)
 
 
+def test_decision_repository_finds_a_decision_by_id_after_reopening(tmp_path):
+    path = tmp_path / "decisions.db"
+    with SQLiteDatabase(path) as database:
+        database.decisions.save(record())
+    with SQLiteDatabase(path) as database:
+        assert database.decisions.get("run-1:AAPL") == record()
+        assert database.decisions.get("missing") is None
+
+
 def test_decision_repository_keeps_rejected_decision_audit(tmp_path):
     database = SQLiteDatabase(tmp_path / "decisions.db")
 

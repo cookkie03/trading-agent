@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     database_path: str = Field("data/trading-agent.db", alias="TRADING_AGENT_DB")
     dashboard_host: str = Field("localhost", alias="TRADING_AGENT_HOST")
     dashboard_port: int = Field(8000, alias="TRADING_AGENT_PORT")
+    omniroute_api_key: SecretStr | None = Field(None, alias="OMNIROUTE_API_KEY")
+    omniroute_model: str = Field("my-combo", alias="OMNIROUTE_MODEL")
     alpaca_api_key: SecretStr | None = Field(None, alias="ALPACA_API_KEY")
     alpaca_secret_key: SecretStr | None = Field(None, alias="ALPACA_SECRET_KEY")
     alpaca_trading_url: str = Field(

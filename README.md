@@ -4,7 +4,9 @@ Progetto Python per un sistema multi-agente di analisi e gestione di un portafog
 
 ## Stato verificato al 2026-11-02
 
-Nel workspace attuale, inclusi test locali non tracciati preesistenti, la suite riporta **144 passed, 1 skipped, 2 warning**. Il test Alpaca paper saltato richiede `--alpaca-paper`. Lint e build frontend sono passati. Il grafo PM resta intenzionalmente `pending` e non è un flusso E2E completo.
+Nel workspace attuale, inclusi test locali non tracciati preesistenti, la suite riporta **157 passed, 1 skipped, 2 warning**. Il test Alpaca paper saltato richiede `--alpaca-paper`. Lint e build frontend sono passati.
+
+La review PM è sperimentale: un reviewer iniettato può approvare l'esecuzione se supera i controlli strutturali e il risk gate. L'adapter OmniRoute locale usa `OMNIROUTE_API_KEY` e `OMNIROUTE_MODEL` (default `my-combo`). Verificati E2E offline simulato e percorso provider simulato → OmniRoute reale → dashboard con decisione pending e broker simulato. Non usare il percorso con un broker reale: la validazione delle citazioni non verifica la qualità della tesi.
 
 ## Configurazione
 

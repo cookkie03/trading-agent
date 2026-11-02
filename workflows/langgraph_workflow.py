@@ -27,6 +27,7 @@ class ResearchGraphState(TypedDict, total=False):
     market_bar: PriceBar | None
     desk_opinions: tuple[DeskOpinion, ...]
     pm_ready: bool
+    pm_review: dict
     risk_review: RiskReview
     decision: str
 
@@ -80,10 +81,43 @@ def _decision_node(state: ResearchGraphState) -> dict[str, str]:
     }
 
 
-def build_research_graph(*, checkpointer=None):
+def build_research_graph(*, checkpointer=None, pm_reviewer=None):
     graph = StateGraph(ResearchGraphState)
     graph.add_node("desk_review", _desk_node)
-    graph.add_node("pm_review", _pm_node)
+
+    def pm_node(state):
+        if pm_reviewer is None:
+            return _pm_node(state)
+        try:
+            review = pm_reviewer(state["research"], state["desk_opinions"])
+        except Exception:
+            return {"pm_ready": False}
+        if not isinstance(review, dict):
+            return {"pm_ready": False}
+        citations = review.get("evidence")
+        if not isinstance(citations, list) or not all(isinstance(x, str) for x in citations):
+            return {"pm_ready": False}
+        opinions = state["desk_opinions"]
+        available = {item for opinion in opinions for item in opinion.evidence}
+        ready = (
+            review.get("run_id") == state["research"].run_id
+            and review.get("symbol") == state["research"].symbol
+            and review.get("decision") == "approve"
+            and all(
+                isinstance(review.get(key), str) and review[key].strip()
+                for key in ("thesis", "counter_thesis", "uncertainties")
+            )
+            and bool(opinions)
+            and all(
+                opinion.evidence and any(x in opinion.evidence for x in citations)
+                for opinion in opinions
+            )
+            and len(citations) == len(set(citations))
+            and set(citations) <= available
+        )
+        return {"pm_ready": bool(ready), "pm_review": review}
+
+    graph.add_node("pm_review", pm_node)
     graph.add_node("technical_review", _technical_node)
     graph.add_node("risk_review", _risk_node)
     graph.add_node("decision", _decision_node)

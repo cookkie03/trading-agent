@@ -95,6 +95,171 @@ def test_research_pipeline_records_pending_without_claiming_missing_evidence(tmp
     assert "PM" in decisions[0].rationale
 
 
+def test_pm_review_can_authorize_paper_only_with_cited_evidence(tmp_path):
+    from dataclasses import replace
+    from datetime import UTC, datetime
+
+    from data.providers.alpaca_news import NewsItem
+    from data.providers.yahoo_fundamentals import FundamentalObservation
+    from storage.sqlite import SQLiteDatabase
+    from tests.data.test_ingestion import make_bar
+    from workflows.paper_runtime import run_research_cycle
+
+    timestamp = datetime(2026, 11, 2, 14, tzinfo=UTC)
+    client = FakeClient()
+
+    def reviewer(research, opinions):
+        return {
+            "run_id": research.run_id,
+            "symbol": research.symbol,
+            "decision": "approve",
+            "thesis": "Trend persists",
+            "counter_thesis": "Earnings could reverse trend",
+            "uncertainties": "Limited market context",
+            "evidence": [o.evidence[0] for o in opinions],
+        }
+
+    with SQLiteDatabase(tmp_path / "review.db") as database:
+        result = run_research_cycle(
+            client,
+            database,
+            approved_state(),
+            portfolio(),
+            RiskLimits(),
+            Decimal("100"),
+            market_bar=replace(make_bar(), symbol="SPY"),
+            news=(NewsItem("Earnings", "wire", "https://example.org/n", timestamp),),
+            fundamentals=(
+                FundamentalObservation("AAPL", "market_cap", Decimal("100"), "test", timestamp),
+            ),
+            pm_reviewer=reviewer,
+        )
+        import json
+
+        records = database.decisions.latest()
+        review = next(record for record in records if record.status == "pm_approved")
+        assert json.loads(review.payload)["counter_thesis"] == "Earnings could reverse trend"
+    with SQLiteDatabase(tmp_path / "review.db") as database:
+        retry = run_research_cycle(
+            client,
+            database,
+            approved_state(),
+            portfolio(),
+            RiskLimits(),
+            Decimal("100"),
+            market_bar=replace(make_bar(), symbol="SPY"),
+            news=(NewsItem("Earnings", "wire", "https://example.org/n", timestamp),),
+            fundamentals=(
+                FundamentalObservation("AAPL", "market_cap", Decimal("100"), "test", timestamp),
+            ),
+            pm_reviewer=reviewer,
+        )
+        assert retry["execution"].submission.broker_order_id == "broker-1"
+
+        def conflicting_review(research, opinions):
+            return {**reviewer(research, opinions), "thesis": "Different thesis"}
+
+        import pytest
+
+        with pytest.raises(ValueError, match="conflicting PM review"):
+            run_research_cycle(
+                client,
+                database,
+                approved_state(),
+                portfolio(),
+                RiskLimits(),
+                Decimal("100"),
+                market_bar=replace(make_bar(), symbol="SPY"),
+                news=(NewsItem("Earnings", "wire", "https://example.org/n", timestamp),),
+                fundamentals=(
+                    FundamentalObservation("AAPL", "market_cap", Decimal("100"), "test", timestamp),
+                ),
+                pm_reviewer=conflicting_review,
+            )
+    assert result["decision"] == "approved"
+    assert len(client.submitted) == 1
+
+
+def test_pm_submit_timeout_does_not_resubmit_after_restart(tmp_path):
+    from dataclasses import replace
+    from datetime import UTC, datetime
+
+    import pytest
+
+    from data.providers.alpaca_news import NewsItem
+    from data.providers.yahoo_fundamentals import FundamentalObservation
+    from storage.sqlite import SQLiteDatabase
+    from tests.data.test_ingestion import make_bar
+    from workflows.paper_runtime import run_research_cycle
+
+    class TimeoutClient(FakeClient):
+        def submit_order(self, request):
+            self.submitted.append(request)
+            raise TimeoutError("response lost")
+
+        def get_order_by_client_id(self, client_order_id):
+            return SimpleNamespace(
+                id="broker-1", client_order_id=client_order_id, status="accepted"
+            )
+
+    def reviewer(research, opinions):
+        return {
+            "run_id": research.run_id,
+            "symbol": research.symbol,
+            "decision": "approve",
+            "thesis": "Trend",
+            "counter_thesis": "Reversal",
+            "uncertainties": "Earnings",
+            "evidence": [opinion.evidence[0] for opinion in opinions],
+        }
+
+    timestamp = datetime(2026, 11, 2, 14, tzinfo=UTC)
+    client = TimeoutClient()
+    path = tmp_path / "timeout.db"
+    kwargs = dict(
+        market_bar=replace(make_bar(), symbol="SPY"),
+        news=(NewsItem("Earnings", "wire", "https://example.org/n", timestamp),),
+        fundamentals=(
+            FundamentalObservation("AAPL", "market_cap", Decimal("100"), "test", timestamp),
+        ),
+        pm_reviewer=reviewer,
+    )
+    with SQLiteDatabase(path) as database:
+        with pytest.raises(TimeoutError):
+            run_research_cycle(
+                client,
+                database,
+                approved_state(),
+                portfolio(),
+                RiskLimits(),
+                Decimal("100"),
+                **kwargs,
+            )
+    with SQLiteDatabase(path) as database:
+        with pytest.raises(RuntimeError):
+            run_research_cycle(
+                client,
+                database,
+                approved_state(),
+                portfolio(),
+                RiskLimits(),
+                Decimal("100"),
+                **kwargs,
+            )
+        from workflows.paper_runtime import paper_runtime
+
+        _, executor = paper_runtime(client, database)
+        order = OrderRequest(
+            "run-1:AAPL", "AAPL", Decimal("10"), Decimal("100"), Decimal("106"), Decimal("96")
+        )
+        assert executor.reconcile(order).broker_order_id == "broker-1"
+        resumed = run_research_cycle(
+            client, database, approved_state(), portfolio(), RiskLimits(), Decimal("100"), **kwargs
+        )
+        assert resumed["execution"].submission.broker_order_id == "broker-1"
+    assert len(client.submitted) == 1
+
+
 def test_research_pipeline_does_not_submit_when_desk_evidence_is_pending(tmp_path):
     from storage.sqlite import SQLiteDatabase
     from workflows.paper_runtime import run_research_cycle

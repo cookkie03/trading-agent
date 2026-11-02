@@ -739,6 +739,14 @@ class DecisionRepository:
         )
         return cursor.rowcount == 1
 
+    def get(self, client_order_id: str) -> DecisionRecord | None:
+        row = self._connection.execute(
+            "SELECT client_order_id, symbol, status, direction, conviction, "
+            "rationale, observed_at, payload FROM decisions WHERE client_order_id = ?",
+            (client_order_id,),
+        ).fetchone()
+        return DecisionRecord(*row[:6], _decode_datetime(row[6]), row[7]) if row else None
+
     def latest(self, limit: int = 100) -> tuple[DecisionRecord, ...]:
         rows = self._connection.execute(
             """
