@@ -26,8 +26,11 @@ class RiskAnalyst:
         portfolio: PortfolioRisk,
         entry_price: Decimal,
     ) -> RiskReview:
-        evaluation = state.evaluations[0]
-        atr = evaluation.values.get("atr")
+        atr = next(
+            (evaluation.values["atr"] for evaluation in state.evaluations
+             if "atr" in evaluation.values),
+            None,
+        )
         if atr is None:
             raise ValueError("risk review requires atr evaluation")
         intent = TradeIntent(

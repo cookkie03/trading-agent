@@ -1,8 +1,17 @@
+from dataclasses import replace
 from decimal import Decimal
 
 from agents.risk import RiskAnalyst
 from execution.risk import RiskLimits
 from tests.workflows.test_trade_cycle import approved_state, portfolio
+
+
+def test_risk_analyst_finds_atr_after_other_evaluations():
+    state = approved_state()
+    other = replace(state.evaluations[0], name="momentum", values={"momentum": Decimal("1")})
+    state = replace(state, evaluations=(other, *state.evaluations))
+
+    assert RiskAnalyst(RiskLimits()).review(state, portfolio(), Decimal("100")).approved
 
 
 def test_risk_analyst_approves_state_when_trade_passes_gate():
