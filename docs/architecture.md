@@ -115,6 +115,10 @@ Il rilascio dovrà includere Dockerfile e procedura di build riproducibile con d
 
 Stato di questo step: packaging `src/` e `.dockerignore` presenti. Dockerfile, comando applicativo, lock delle dipendenze e validazione container arriveranno con il primo flusso eseguibile. Nessuna immagine o distribuzione produzione è attestata da questo scaffolding.
 
+## News e desk sentiment — 2026-11-02
+
+`AlpacaNewsProvider` normalizza titoli con fonte, URL e data; il ciclo provider può passarli al desk sentiment. Le notizie sono osservazioni, non un punteggio o una conclusione di sentiment. Copertura limitata alle prime 50 notizie della risposta: paginazione, persistenza delle fonti e sintesi LLM restano aperte. Il feed Alpaca news è stato interrogato in sola lettura; il collegamento al desk è verificato con client simulato.
+
 ## Provider e desk tecnico — 2026-11-02
 
 `run_provider_research_cycle` acquisisce barre tramite il provider configurato, le persiste e usa la chiusura dell'ultima barra nell'intervallo richiesto come prezzo e contesto della review tecnica. Il test copre provider simulato → SQLite → desk → decisione pending → HTTP. Calcola ATR Wilder a 14 periodi dalle barre di una sola fonte, rifiutando storico insufficiente o timestamp duplicati, e sostituisce l'ATR preesistente nello state. Richiede un `as_of` esplicito e una soglia `max_age` positiva, rifiutando barre obsolete e intervalli futuri. La soglia è responsabilità del chiamante; anche la sequenza dei timestamp attesi è richiesta esplicitamente e le barre mancanti sono rifiutate. Per barre Alpaca giornaliere la sequenza può essere generata dal calendario Alpaca, usando le sessioni e la mezzanotte America/New_York come etichetta della barra; il controllo è verificato con calendario simulato. Per barre hourly il calendario genera le etichette intere sovrapposte alla sessione regolare, includendo chiusure anticipate e fuso New York; il feed può comunque comprendere dati extended-hours. La verifica delle etichette con un feed IEX reale è puntuale, non una garanzia per tutti i provider. Non sono disponibili evidenze per gli altri desk. Non è pronto per decisioni automatiche di trading.

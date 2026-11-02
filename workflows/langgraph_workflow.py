@@ -10,6 +10,7 @@ from langgraph.graph import END, START, StateGraph
 from agents.desks import DeskContext, DeskOpinion, run_desks
 from agents.risk import RiskAnalyst, RiskReview
 from analysis.strategy_state import ResearchState
+from data.providers.alpaca_news import NewsItem
 from execution.risk import PortfolioRisk, RiskLimits
 
 
@@ -19,6 +20,7 @@ class ResearchGraphState(TypedDict, total=False):
     limits: dict[str, Decimal]
     entry_price: Decimal
     technical_complete: bool
+    news: tuple[NewsItem, ...]
     desk_opinions: tuple[DeskOpinion, ...]
     pm_ready: bool
     risk_review: RiskReview
@@ -34,6 +36,7 @@ def _desk_node(state: ResearchGraphState) -> dict[str, tuple[DeskOpinion, ...]]:
                 as_of=research.as_of,
                 current_price=state["entry_price"],
                 research=research,
+                news=state.get("news", ()),
             )
         )
     }

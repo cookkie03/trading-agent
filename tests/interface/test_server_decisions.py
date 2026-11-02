@@ -7,6 +7,42 @@ from interface.server import DashboardServer
 from storage.sqlite import DecisionRecord, SQLiteDatabase
 
 
+def test_news_provider_supplies_attributed_sentiment_evidence(tmp_path):
+    from decimal import Decimal
+    from types import SimpleNamespace
+
+    from agents.desks import DeskContext, run_desks
+    from data.providers.alpaca_news import AlpacaNewsProvider
+    from tests.workflows.test_trade_cycle import approved_state
+
+    class NewsClient:
+        def get_news(self, request):
+            return SimpleNamespace(
+                data={
+                    "news": [
+                        SimpleNamespace(
+                            id=123,
+                            headline="Company reports earnings",
+                            source="Example wire",
+                            url="https://example.org/news/123",
+                            created_at=datetime(2026, 11, 1, tzinfo=UTC),
+                            symbols=["AAPL"],
+                        )
+                    ]
+                }
+            )
+
+    state = approved_state()
+    news = AlpacaNewsProvider(NewsClient()).get_news(
+        "AAPL", datetime(2026, 10, 31, tzinfo=UTC), datetime(2026, 11, 2, tzinfo=UTC)
+    )
+    opinions = run_desks(DeskContext(state.symbol, state.as_of, Decimal("100"), state, news=news))
+    sentiment = next(opinion for opinion in opinions if opinion.desk == "sentiment")
+    assert "Company reports earnings" in sentiment.view
+    assert "https://example.org/news/123" in sentiment.evidence[0]
+    assert next(opinion for opinion in opinions if opinion.desk == "fundamentals").evidence == ()
+
+
 def test_hourly_calendar_handles_early_close_and_market_timezone():
     from types import SimpleNamespace
 

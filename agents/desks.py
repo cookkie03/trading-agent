@@ -7,6 +7,7 @@ from datetime import date
 from decimal import Decimal
 
 from analysis.strategy_state import ResearchState
+from data.providers.alpaca_news import NewsItem
 
 
 @dataclass(frozen=True)
@@ -15,6 +16,7 @@ class DeskContext:
     as_of: date
     current_price: Decimal
     research: ResearchState
+    news: tuple[NewsItem, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -48,8 +50,15 @@ def run_desks(context: DeskContext) -> tuple[DeskOpinion, ...]:
         ),
         DeskOpinion(
             desk="sentiment",
-            view="sentiment context pending provider evidence",
-            rationale="Sentiment claims require cited news or positioning observations.",
-            evidence=(),
+            view=(
+                "; ".join(item.headline for item in context.news)
+                if context.news
+                else "sentiment context pending provider evidence"
+            ),
+            rationale="News headlines are observations, not inferred sentiment or positioning.",
+            evidence=tuple(
+                f"{item.source} | {item.published_at.isoformat()} | {item.url}"
+                for item in context.news
+            ),
         ),
     )

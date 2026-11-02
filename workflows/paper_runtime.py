@@ -23,7 +23,7 @@ def paper_runtime(client, database):
     return TradeCycle(executor, database.decisions), executor
 
 
-def run_research_cycle(client, database, state, portfolio, limits, entry_price):
+def run_research_cycle(client, database, state, portfolio, limits, entry_price, *, news=()):
     """Run research and only execute a decision approved by the complete graph."""
     result = build_research_graph().invoke(
         {
@@ -31,6 +31,7 @@ def run_research_cycle(client, database, state, portfolio, limits, entry_price):
             "portfolio": asdict(portfolio),
             "limits": asdict(limits),
             "entry_price": entry_price,
+            "news": news,
         }
     )
     if result["decision"] == "approved":
@@ -73,6 +74,7 @@ def run_provider_research_cycle(
     max_age: timedelta,
     expected_timestamps: tuple[datetime, ...] | None = None,
     calendar_client=None,
+    news_provider=None,
 ):
     """Ingest provider bars and attach their latest close to technical research."""
     if as_of.utcoffset() is None or max_age <= timedelta(0):
@@ -126,7 +128,8 @@ def run_provider_research_cycle(
             f"at {bar.timestamp.isoformat()} from {bar.source}."
         ),
     )
-    return run_research_cycle(client, database, state, portfolio, limits, bar.close)
+    news = news_provider.get_news(state.symbol, start, end) if news_provider else ()
+    return run_research_cycle(client, database, state, portfolio, limits, bar.close, news=news)
 
 
 def alpaca_paper_runtime(settings: Settings, database):
