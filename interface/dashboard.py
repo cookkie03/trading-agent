@@ -164,16 +164,21 @@ class SQLiteDashboardReadModel:
         with SQLiteDatabase(self._database_path) as database:
             bars = self._latest_bars(database)
             portfolio = self._portfolio(database)
-        if not bars and portfolio is None:
+            decisions = self._decisions(database)
+        if not bars and portfolio is None and not decisions:
             return DashboardSnapshot.empty()
         latest_bar = max(bars, key=lambda bar: bar.collected_at) if bars else None
         portfolio_observed_at, portfolio_data = portfolio or (None, None)
+        latest_decision = (
+            max(decisions, key=lambda decision: decision.observed_at) if decisions else None
+        )
         observed_at = max(
             (
                 value
                 for value in (
                     latest_bar.collected_at if latest_bar else None,
                     portfolio_observed_at,
+                    latest_decision.observed_at if latest_decision else None,
                 )
                 if value is not None
             ),
@@ -199,15 +204,28 @@ class SQLiteDashboardReadModel:
                 }
                 for bar in bars
             ],
-            decisions=(),
+            decisions=tuple(
+                DecisionReadModel(
+                    symbol=decision.symbol,
+                    status=decision.status,
+                    direction=decision.direction,
+                    conviction=decision.conviction,
+                    observed_at=decision.observed_at.isoformat(),
+                    rationale=decision.rationale,
+                )
+                for decision in decisions
+            ),
             modules={
                 "market_data": "available",
-                "decisions": "unavailable",
+                "decisions": "available" if decisions else "unavailable",
                 "triggers": "unavailable",
                 "benchmark": "post-mvp",
                 "system_run": "unavailable",
             },
         )
+
+    def _decisions(self, database: SQLiteDatabase):
+        return database.decisions.latest()
 
     def _portfolio(self, database: SQLiteDatabase):
         latest = database.broker_snapshots.latest("alpaca")
