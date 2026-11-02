@@ -16,6 +16,7 @@ class PaperOrderRequest:
     symbol: str
     quantity: Decimal
     limit_price: Decimal
+    take_profit_price: Decimal
     stop_price: Decimal
 
 
@@ -42,7 +43,7 @@ class AlpacaPaperOrders:
             time_in_force=TimeInForce.DAY,
             limit_price=str(order.limit_price),
             order_class="bracket",
-            take_profit=TakeProfitRequest(limit_price=str(order.limit_price)),
+            take_profit=TakeProfitRequest(limit_price=float(order.take_profit_price)),
             stop_loss=StopLossRequest(stop_price=str(order.stop_price)),
             client_order_id=order.client_order_id,
         )

@@ -25,6 +25,7 @@ def test_paper_orders_submit_and_cancel_through_injected_client():
         symbol="AAPL",
         quantity=Decimal("10"),
         limit_price=Decimal("100"),
+        take_profit_price=Decimal("110"),
         stop_price=Decimal("95"),
     )
 
@@ -32,4 +33,5 @@ def test_paper_orders_submit_and_cancel_through_injected_client():
     adapter.cancel(submitted.broker_order_id)
 
     assert submitted.broker_order_id == "broker-1"
+    assert client.submitted[0].take_profit.limit_price == 110.0
     assert client.cancelled == ["broker-1"]
