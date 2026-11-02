@@ -58,6 +58,8 @@ class IdempotentPaperExecutor:
     def submit(self, request: OrderRequest, decision: RiskDecision) -> Submission:
         if not decision.approved:
             raise ValueError(f"risk gate rejected order: {', '.join(decision.reasons)}")
+        if request.quantity > decision.quantity:
+            raise ValueError("order quantity exceeds risk-approved quantity")
         previous = self._requests.get(request.client_order_id)
         if previous is not None:
             if previous != request:

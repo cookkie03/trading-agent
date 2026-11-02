@@ -64,10 +64,23 @@ def test_paper_executor_rejects_unapproved_order():
     assert gateway.requests == []
 
 
+def test_paper_executor_rejects_quantity_exceeding_risk_approval():
+    gateway = FakePaperGateway()
+    executor = IdempotentPaperExecutor(gateway)
+
+    with pytest.raises(ValueError, match="quantity"):
+        executor.submit(request().different(quantity=Decimal("11")), approved())
+
+    assert gateway.requests == []
+
+
 def test_paper_executor_rejects_reused_client_id_for_different_order():
     gateway = FakePaperGateway()
     executor = IdempotentPaperExecutor(gateway)
     executor.submit(request(), approved())
 
     with pytest.raises(ValueError, match="different order"):
-        executor.submit(request().different(quantity=Decimal("11")), approved())
+        executor.submit(
+            request().different(quantity=Decimal("11")),
+            RiskDecision(approved=True, quantity=Decimal("11"), reasons=()),
+        )
