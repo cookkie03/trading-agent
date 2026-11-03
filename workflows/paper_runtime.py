@@ -69,7 +69,7 @@ def run_research_cycle(
     else:
         review = result["risk_review"]
         rationale = (
-            "; ".join(review.decision.reasons)
+            ("; ".join(review.decision.reasons) or result.get("pm_review", {}).get("thesis", ""))
             if result["decision"] == "rejected"
             else "PM review pending; technical review or desk evidence may also be incomplete"
         )

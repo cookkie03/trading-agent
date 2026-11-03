@@ -260,6 +260,38 @@ def test_pm_submit_timeout_does_not_resubmit_after_restart(tmp_path):
     assert len(client.submitted) == 1
 
 
+def test_pm_rejection_is_recorded_without_submitting(tmp_path):
+    from storage.sqlite import SQLiteDatabase
+    from workflows.paper_runtime import run_research_cycle
+
+    client = FakeClient()
+
+    def reviewer(research, opinions):
+        return {
+            "run_id": research.run_id,
+            "symbol": research.symbol,
+            "decision": "reject",
+            "thesis": "Insufficient evidence",
+            "counter_thesis": "Trend may continue",
+            "uncertainties": "Missing market data",
+            "evidence": [],
+        }
+
+    with SQLiteDatabase(tmp_path / "reject.db") as database:
+        result = run_research_cycle(
+            client,
+            database,
+            approved_state(),
+            portfolio(),
+            RiskLimits(),
+            Decimal("100"),
+            pm_reviewer=reviewer,
+        )
+        assert result["decision"] == "rejected"
+        assert "Insufficient evidence" in database.decisions.latest()[0].rationale
+        assert client.submitted == []
+
+
 def test_research_pipeline_does_not_submit_when_desk_evidence_is_pending(tmp_path):
     from storage.sqlite import SQLiteDatabase
     from workflows.paper_runtime import run_research_cycle

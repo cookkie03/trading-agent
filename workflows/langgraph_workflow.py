@@ -76,6 +76,15 @@ def _decision_node(state: ResearchGraphState) -> dict[str, str]:
     review = state["risk_review"]
     if not review.approved:
         return {"decision": "rejected"}
+    pm = state.get("pm_review", {})
+    if (
+        pm.get("decision") == "reject"
+        and pm.get("run_id") == state["research"].run_id
+        and pm.get("symbol") == state["research"].symbol
+        and isinstance(pm.get("thesis"), str)
+        and pm["thesis"].strip()
+    ):
+        return {"decision": "rejected"}
     return {
         "decision": "approved" if state["pm_ready"] and state["technical_complete"] else "pending"
     }
