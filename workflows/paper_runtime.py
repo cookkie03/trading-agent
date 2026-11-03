@@ -1,5 +1,6 @@
 """Compose the paper order cycle with durable local repositories."""
 
+import json
 from dataclasses import asdict, replace
 from datetime import UTC, datetime, timedelta
 
@@ -34,9 +35,10 @@ def run_research_cycle(
     news=(),
     fundamentals=(),
     market_bar=None,
+    pm_reviewer=None,
 ):
     """Run research and only execute a decision approved by the complete graph."""
-    result = build_research_graph().invoke(
+    result = build_research_graph(pm_reviewer=pm_reviewer).invoke(
         {
             "research": state,
             "portfolio": asdict(portfolio),
@@ -48,12 +50,26 @@ def run_research_cycle(
         }
     )
     if result["decision"] == "approved":
+        record = DecisionRecord(
+            client_order_id=f"{state.run_id}:{state.symbol}:pm",
+            symbol=state.symbol,
+            status="pm_approved",
+            direction=state.proposed_direction,
+            conviction=state.conviction,
+            rationale=result["pm_review"]["thesis"],
+            observed_at=datetime.now(UTC),
+            payload=json.dumps(result["pm_review"], sort_keys=True),
+        )
+        if not database.decisions.save(record):
+            existing = database.decisions.get(record.client_order_id)
+            if existing is None or replace(existing, observed_at=record.observed_at) != record:
+                raise ValueError("conflicting PM review for this run")
         cycle, _ = paper_runtime(client, database)
         result["execution"] = cycle.run(result["risk_review"].state, portfolio, limits, entry_price)
     else:
         review = result["risk_review"]
         rationale = (
-            "; ".join(review.decision.reasons)
+            ("; ".join(review.decision.reasons) or result.get("pm_review", {}).get("thesis", ""))
             if result["decision"] == "rejected"
             else "PM review pending; technical review or desk evidence may also be incomplete"
         )
@@ -90,6 +106,7 @@ def run_provider_research_cycle(
     news_provider=None,
     fundamentals_provider=None,
     market_symbol=None,
+    pm_reviewer=None,
 ):
     """Ingest provider bars and attach their latest close to technical research."""
     if as_of.utcoffset() is None or max_age <= timedelta(0):
@@ -174,6 +191,7 @@ def run_provider_research_cycle(
         news=news,
         fundamentals=fundamentals,
         market_bar=market_bar,
+        pm_reviewer=pm_reviewer,
     )
 
 

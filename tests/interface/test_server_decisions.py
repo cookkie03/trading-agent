@@ -276,6 +276,84 @@ def test_provider_bar_is_used_by_technical_desk_and_visible_over_http(tmp_path):
     assert payload["decisions"][0]["status"] == "pending"
 
 
+def test_provider_pm_order_and_dashboard_end_to_end(tmp_path):
+    from dataclasses import replace
+    from datetime import timedelta
+    from decimal import Decimal
+    from types import SimpleNamespace
+
+    from data.providers.alpaca_news import NewsItem
+    from data.providers.yahoo_fundamentals import FundamentalObservation
+    from execution.risk import RiskLimits
+    from tests.brokers.test_alpaca_orders import FakeClient
+    from tests.data.test_ingestion import FakeProvider, make_bar
+    from tests.workflows.test_trade_cycle import approved_state, portfolio
+    from workflows.paper_runtime import run_provider_research_cycle
+
+    bar = make_bar()
+    bars = tuple(
+        replace(bar, timestamp=bar.timestamp - timedelta(days=i)) for i in range(14, -1, -1)
+    )
+
+    class Provider(FakeProvider):
+        def get_ohlcv_history(self, symbol, start, end, interval):
+            return tuple(replace(item, symbol=symbol) for item in bars)
+
+    news = SimpleNamespace(
+        get_news=lambda *args: (
+            NewsItem("Earnings", "wire", "https://example.org/n", bar.timestamp),
+        )
+    )
+    fundamentals = SimpleNamespace(
+        get_fundamentals=lambda symbol: (
+            FundamentalObservation(symbol, "market_cap", Decimal("100"), "test", bar.timestamp),
+        )
+    )
+
+    def reviewer(research, opinions):
+        return {
+            "run_id": research.run_id,
+            "symbol": research.symbol,
+            "decision": "approve",
+            "thesis": "Trend",
+            "counter_thesis": "Reversal",
+            "uncertainties": "Earnings",
+            "evidence": [opinion.evidence[0] for opinion in opinions],
+        }
+
+    path = tmp_path / "e2e.db"
+    client = FakeClient()
+    with SQLiteDatabase(path) as database:
+        result = run_provider_research_cycle(
+            Provider(bars),
+            client,
+            database,
+            approved_state(),
+            portfolio(),
+            RiskLimits(),
+            start=datetime(2026, 10, 1, tzinfo=UTC),
+            end=datetime(2026, 11, 1, tzinfo=UTC),
+            interval="1d",
+            as_of=datetime(2026, 11, 1, tzinfo=UTC),
+            max_age=timedelta(days=3),
+            expected_timestamps=tuple(item.timestamp for item in bars),
+            news_provider=news,
+            fundamentals_provider=fundamentals,
+            market_symbol="SPY",
+            pm_reviewer=reviewer,
+        )
+        assert result["decision"] == "approved"
+        assert len(client.submitted) == 1
+    server = DashboardServer(SQLiteDashboardReadModel(path), port=0)
+    server.start()
+    try:
+        with urlopen(server.url("/api/dashboard")) as response:
+            payload = json.load(response)
+    finally:
+        server.close()
+    assert any(item["status"] == "pm_approved" for item in payload["decisions"])
+
+
 def test_provider_data_reaches_dashboard_before_pending_research(tmp_path):
     from decimal import Decimal
 

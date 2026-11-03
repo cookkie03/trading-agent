@@ -26,6 +26,27 @@ def test_research_graph_rejects_trade_after_risk_veto():
     assert result["decision"] == "rejected"
 
 
+def test_failed_pm_reviewer_leaves_decision_pending():
+    def failed_review(research, opinions):
+        raise RuntimeError("provider unavailable")
+
+    result = build_research_graph(pm_reviewer=failed_review).invoke(
+        {
+            "research": approved_state(),
+            "portfolio": {
+                "equity": Decimal("10000"),
+                "cash": Decimal("5000"),
+                "open_risk": Decimal("0"),
+                "symbol_exposure": Decimal("0"),
+            },
+            "limits": {"max_symbol_exposure": Decimal("0.10")},
+            "entry_price": Decimal("100"),
+        }
+    )
+    assert result["decision"] == "pending"
+    assert result["pm_ready"] is False
+
+
 def test_research_graph_compiles_and_runs_deterministic_review():
     graph = build_research_graph()
     state = approved_state()

@@ -2,6 +2,10 @@
 
 Stato: alberatura approvata da Luca il 2026-10-30; creato lo scheletro dei package. Primo contratto Broker di sola lettura e adapter Alpaca paper implementati il 2026-10-31; execution e agenti ancora da sviluppare.
 
+## Review PM sperimentale
+
+`agents/pm_omniroute.py` offre un reviewer OmniRoute locale; il grafo valida identità, campi e citazioni prima del risk gate. La validazione non certifica la qualità della tesi. Il runtime persiste la review e rifiuta conflitti; dopo un submit incerto occorre riconciliare esplicitamente prima di riprendere. Verificato OmniRoute reale con provider e broker simulati e decisione pending; non è una verifica operativa con broker.
+
 ## Obiettivo
 
 Codice leggibile da Luca mentre cresce, con broker, fonti dati, analisi e agenti sostituibili. La wiki adiacente conserva requisiti e decisioni; questo documento presenta una possibile organizzazione del codice. L'ordine attuale richiesto da Luca è struttura → broker Alpaca paper → ulteriori moduli.
