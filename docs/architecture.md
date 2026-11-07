@@ -2,6 +2,12 @@
 
 Stato: alberatura approvata da Luca il 2026-10-30; creato lo scheletro dei package. Primo contratto Broker di sola lettura e adapter Alpaca paper implementati il 2026-10-31; execution e agenti ancora da sviluppare.
 
+## Prototipo grafo agentico — 2026-11-05
+
+`agents/graph.py` contiene un prototipo separato dal runtime esistente: riceve cinque callable analisti e un PM, oltre a gate di rischio e controllo di completezza iniettati. Valida ruolo, contenuto e timestamp delle analisi; il routing è provvisorio e non esegue trade. Non integra provider né broker. Separatamente, `agents/desks.py` offre quattro desk deterministici limitati; `agents/portfolio_manager.py` un Portfolio Manager con backend iniettato e astensione; `agents/risk_adapter.py` applica `execution.risk` a proposte long. `agents/desk_adapters.py` collega i quattro desk al grafo richiedendo evidence e timestamp con fuso orario, usando il più vecchio delle fonti; il gate controlla identità del symbol e direzione long. `agents/portfolio_manager_adapter.py` espone `pm_decision` e restituisce sempre `pending` al grafo. Il clock è iniettabile: senza clock si usa `now` del chiamante, utile per replay ma incapace di rilevare il tempo trascorso durante il PM. Nessun backend reale, ragionamento agentico pieno o routing definitivo. Verificati `uv run pytest -q` (200 passati, 1 saltato, 2 warning) e `uv run ruff check agents/graph.py agents/desks.py agents/desk_adapters.py agents/portfolio_manager.py agents/portfolio_manager_adapter.py agents/risk_adapter.py tests/agents` (superato). La definizione di Risk e dei confini resta aperta nella [wiki](../../trading-agent-wiki/wiki/system/foundation/codebase-architecture.md#decisione-e-confini--2026-11-05).
+
+Le sezioni storiche successive, inclusa l'attribuzione della topologia agentica a `workflows`, non prevalgono sulla decisione corrente: il grafo agentico sta sotto `agents`.
+
 ## Review PM sperimentale
 
 `agents/pm_omniroute.py` offre un reviewer OmniRoute locale; il grafo valida identità, campi e citazioni prima del risk gate. La validazione non certifica la qualità della tesi. Il runtime persiste la review e rifiuta conflitti; dopo un submit incerto occorre riconciliare esplicitamente prima di riprendere. Verificato OmniRoute reale con provider e broker simulati e decisione pending; non è una verifica operativa con broker.

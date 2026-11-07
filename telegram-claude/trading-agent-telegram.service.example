@@ -1,0 +1,16 @@
+[Unit]
+Description=Trading Agent Telegram Claude bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/luca/trading-agent
+EnvironmentFile=/home/luca/trading-agent/telegram-claude/.env
+Environment=PYTHONPATH=/home/luca/trading-agent/telegram-claude
+ExecStart=/home/luca/.local/bin/uv run --extra telegram python -m telegram_claude.app
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

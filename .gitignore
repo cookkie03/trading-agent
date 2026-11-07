@@ -22,3 +22,9 @@ docs/claude-chats/
 # Telegram bridge local state
 telegram-claude/sessions.sqlite3
 telegram-claude/__pycache__/
+.agents/
+.claude
+.codex
+.qwen
+.hermes
+.impeccable

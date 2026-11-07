@@ -31,10 +31,9 @@ class DeskOpinion:
     evidence: tuple[str, ...]
 
 
-def run_desks(context: DeskContext) -> tuple[DeskOpinion, ...]:
-    """Run the four required desk seams without external calls or invented data."""
-    return (
-        DeskOpinion(
+class MarketAnalyst:
+    def analyze(self, context: DeskContext) -> DeskOpinion:
+        return DeskOpinion(
             desk="market",
             view=(
                 f"{context.market_bar.symbol} close {context.market_bar.close}"
@@ -47,8 +46,12 @@ def run_desks(context: DeskContext) -> tuple[DeskOpinion, ...]:
                 if context.market_bar
                 else ()
             ),
-        ),
-        DeskOpinion(
+        )
+
+
+class TechnicalAnalyst:
+    def analyze(self, context: DeskContext) -> DeskOpinion:
+        return DeskOpinion(
             desk="technical",
             view=context.research.technical_view,
             rationale="Technical view is supplied by the normalized quantitative context.",
@@ -57,8 +60,12 @@ def run_desks(context: DeskContext) -> tuple[DeskOpinion, ...]:
                 f"{item.observed_at.isoformat()}"
                 for item in context.research.evaluations
             ),
-        ),
-        DeskOpinion(
+        )
+
+
+class FundamentalAnalyst:
+    def analyze(self, context: DeskContext) -> DeskOpinion:
+        return DeskOpinion(
             desk="fundamentals",
             view=(
                 "; ".join(f"{item.metric}: {item.value}" for item in context.fundamentals)
@@ -70,8 +77,12 @@ def run_desks(context: DeskContext) -> tuple[DeskOpinion, ...]:
                 f"{item.source} | observed {item.observed_at.isoformat()}"
                 for item in context.fundamentals
             ),
-        ),
-        DeskOpinion(
+        )
+
+
+class SentimentAnalyst:
+    def analyze(self, context: DeskContext) -> DeskOpinion:
+        return DeskOpinion(
             desk="sentiment",
             view=(
                 "; ".join(item.headline for item in context.news)
@@ -83,5 +94,17 @@ def run_desks(context: DeskContext) -> tuple[DeskOpinion, ...]:
                 f"{item.source} | {item.published_at.isoformat()} | {item.url}"
                 for item in context.news
             ),
-        ),
+        )
+
+
+def run_desks(context: DeskContext) -> tuple[DeskOpinion, ...]:
+    """Run the four required desk seams without external calls or invented data."""
+    return tuple(
+        analyst.analyze(context)
+        for analyst in (
+            MarketAnalyst(),
+            TechnicalAnalyst(),
+            FundamentalAnalyst(),
+            SentimentAnalyst(),
+        )
     )

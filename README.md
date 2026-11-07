@@ -2,6 +2,10 @@
 
 Progetto Python per un sistema multi-agente di analisi e gestione di un portafoglio azionario. Gli agenti elaborano informazioni e proposte; calcoli, controlli di rischio ed esecuzione restano deterministicamente verificabili.
 
+## Avanzamento parziale al 2026-11-05
+
+Il grafo prototipale `agents/graph.py` è separato dal runtime e usa analisti, PM e controlli iniettati; il routing è provvisorio. Quattro desk deterministici limitati, un Portfolio Manager con backend iniettato e astensione e un adapter di rischio per proposte long sono disponibili separatamente. Nessuna integrazione provider o broker né ragionamento agentico pieno. `agents/desk_adapters.py` collega i quattro desk richiedendo evidence e usando il timestamp della fonte più vecchia; il gate verifica identità del symbol e direzione long. L'adapter PM espone `pm_decision` mantenendo l'esito del grafo `pending`. Nessun backend reale; routing non deciso. Il clock è iniettabile: senza clock il grafo usa `now` fornito dal chiamante, adatto al replay ma non a rilevare il tempo trascorso durante il PM. Verificati `uv run pytest -q` (200 passati, 1 saltato, 2 warning) e `uv run ruff check agents/graph.py agents/desks.py agents/desk_adapters.py agents/portfolio_manager.py agents/portfolio_manager_adapter.py agents/risk_adapter.py tests/agents` (superato). Dettagli in [architettura](docs/architecture.md).
+
 ## Stato verificato al 2026-11-02
 
 Nel workspace attuale, inclusi test locali non tracciati preesistenti, la suite riporta **157 passed, 1 skipped, 2 warning**. Il test Alpaca paper saltato richiede `--alpaca-paper`. Lint e build frontend sono passati.
